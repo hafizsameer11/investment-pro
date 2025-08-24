@@ -1,0 +1,47 @@
+{
+  "name": "invest-pro",
+  "version": "1.0.0",
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "lint": "eslint . --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^14.0.0",
+    "@hookform/resolvers": "^5.2.1",
+    "@react-native-async-storage/async-storage": "2.1.2",
+    "@react-navigation/bottom-tabs": "^6.5.11",
+    "@react-navigation/native": "^6.1.9",
+    "@react-navigation/stack": "^6.4.1",
+    "axios": "^1.6.2",
+    "dayjs": "^1.11.10",
+    "expo": "53.0.22",
+    "expo-font": "~13.3.2",
+    "expo-secure-store": "~14.2.4",
+    "expo-status-bar": "~2.2.3",
+    "react": "19.0.0",
+    "react-hook-form": "^7.48.2",
+    "react-native": "0.79.5",
+    "react-native-gesture-handler": "~2.24.0",
+    "react-native-safe-area-context": "5.4.0",
+    "react-native-screens": "~4.11.1",
+    "react-native-toast-message": "^2.3.3",
+    "typescript": "~5.8.3",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@types/react": "~19.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.1",
+    "@typescript-eslint/parser": "^6.13.1",
+    "eslint": "^8.54.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "typescript": "~5.8.3"
+  },
+  "private": true
+}
