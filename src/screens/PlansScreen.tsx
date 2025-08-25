@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   View,
@@ -6,6 +7,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  RefreshControl,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -102,6 +106,10 @@ const plans: Plan[] = [
 export default function PlansScreen() {
   const [apiPlans, setApiPlans] = useState<ApiPlan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showInvestmentModal, setShowInvestmentModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [investmentAmount, setInvestmentAmount] = useState('');
 
   useEffect(() => {
     loadPlans();
@@ -109,9 +117,22 @@ export default function PlansScreen() {
 
   const loadPlans = async () => {
     try {
-      setLoading(true);
+      if (!refreshing) {
+        setLoading(true);
+      }
       const plans = await investmentService.getPlans();
       setApiPlans(plans);
+      
+      // Show success message on refresh
+      if (refreshing) {
+        Toast.show({
+          type: 'success',
+          text1: 'Plans Updated',
+          text2: 'Investment plans have been refreshed successfully',
+          position: 'top',
+          visibilityTime: 2000,
+        });
+      }
     } catch (error) {
       // Show detailed error message
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -124,6 +145,7 @@ export default function PlansScreen() {
       });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -151,11 +173,68 @@ export default function PlansScreen() {
     return plans; // Fallback to local plans
   };
 
-  const handleInvestNow = async (plan: Plan) => {
-    try {
-      // Get user's current balance from dashboard
+  const handleInvestmentSubmit = async () => {
+    if (!selectedPlan) return;
+    
+    console.log('🔵 Investment amount entered:', investmentAmount);
+    if (investmentAmount) {
+      const investAmount = parseFloat(investmentAmount);
+      console.log('🔵 Parsed investment amount:', investAmount);
+      
+      // Get current balance
       const dashboardData = await dashboardService.getDashboard();
       const userBalance = dashboardData?.data?.total_balance || 0;
+      
+      console.log('🔵 Amount validation:', {
+        isNaN: isNaN(investAmount),
+        belowMin: investAmount < selectedPlan.minAmount,
+        aboveMax: investAmount > selectedPlan.maxAmount,
+        exceedsBalance: investAmount > userBalance
+      });
+      
+      if (isNaN(investAmount) || investAmount < selectedPlan.minAmount || investAmount > selectedPlan.maxAmount) {
+        console.log('🔴 Invalid amount entered');
+        Alert.alert('Invalid Amount', `Please enter an amount between ${usd(selectedPlan.minAmount)} and ${usd(selectedPlan.maxAmount)}`);
+        return;
+      }
+      
+      if (investAmount > userBalance) {
+        console.log('🔴 Insufficient balance for investment');
+        Alert.alert('Insufficient Balance', `You don't have enough balance for this investment.`);
+        return;
+      }
+      
+      try {
+        console.log('🔵 Calling investmentService.activatePlan with:', { planId: parseInt(selectedPlan.id), amount: investAmount });
+        await investmentService.activatePlan(parseInt(selectedPlan.id), investAmount);
+        console.log('✅ Plan activation successful');
+        Alert.alert('Success', 'Plan activated successfully!');
+        
+        // Close modal and refresh data
+        setShowInvestmentModal(false);
+        setSelectedPlan(null);
+        setInvestmentAmount('');
+        loadPlans();
+      } catch (error) {
+        console.log('🔴 Plan activation failed:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        Alert.alert('Error', `Failed to activate plan: ${errorMessage}`);
+      }
+    }
+  };
+
+  const handleInvestNow = async (plan: Plan) => {
+    try {
+      console.log('🔵 Invest Now clicked for plan:', plan);
+      
+      // Get user's current balance from dashboard
+      const dashboardData = await dashboardService.getDashboard();
+      console.log('🔵 Dashboard data:', dashboardData);
+      
+      const userBalance = dashboardData?.data?.total_balance || 0;
+      console.log('🔵 User balance:', userBalance);
+      console.log('🔵 Plan min amount:', plan.minAmount);
+      console.log('🔵 Balance comparison:', userBalance < plan.minAmount);
       
       if (userBalance < plan.minAmount) {
         Alert.alert(
@@ -170,15 +249,17 @@ export default function PlansScreen() {
               text: 'Make Deposit',
               onPress: () => {
                 // Navigate to deposit screen
-                // You can add navigation here when you have navigation setup
                 Alert.alert('Deposit', 'Please go to the Deposit tab to add funds to your account.');
               },
             },
           ]
         );
       } else {
-        // Navigate to deposit screen with plan selected
-        Alert.alert('Invest Now', `Selected plan: ${plan.name}. Please go to the Deposit tab to complete your investment.`);
+        console.log('🔵 Showing custom investment modal');
+        // Show custom investment modal
+        setSelectedPlan(plan);
+        setInvestmentAmount(plan.minAmount.toString());
+        setShowInvestmentModal(true);
       }
     } catch (error) {
       console.error('Error checking balance:', error);
@@ -189,7 +270,13 @@ export default function PlansScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={loadPlans} />
+        }
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Investment Plans</Text>
@@ -328,6 +415,54 @@ export default function PlansScreen() {
           </View>
         </Card>
       </ScrollView>
+
+      {/* Custom Investment Modal */}
+      <Modal
+        visible={showInvestmentModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowInvestmentModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              Invest in {selectedPlan?.name}
+            </Text>
+            <Text style={styles.modalSubtitle}>
+              Enter amount (min: {usd(selectedPlan?.minAmount || 0)}, max: {usd(selectedPlan?.maxAmount || 0)})
+            </Text>
+            
+            <TextInput
+              style={styles.modalInput}
+              value={investmentAmount}
+              onChangeText={setInvestmentAmount}
+              placeholder="Enter amount"
+              keyboardType="numeric"
+              autoFocus={true}
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => {
+                  setShowInvestmentModal(false);
+                  setSelectedPlan(null);
+                  setInvestmentAmount('');
+                }}
+              >
+                <Text style={styles.modalButtonCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonInvest]}
+                onPress={handleInvestmentSubmit}
+              >
+                <Text style={styles.modalButtonInvestText}>Invest</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -541,5 +676,70 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: '#6B7280',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 320,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 20,
+    backgroundColor: '#F9FAFB',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalButtonCancel: {
+    backgroundColor: '#F3F4F6',
+  },
+  modalButtonInvest: {
+    backgroundColor: '#10B981',
+  },
+  modalButtonCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  modalButtonInvestText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

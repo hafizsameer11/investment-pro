@@ -8,6 +8,7 @@ import {
   Modal,
   TouchableOpacity,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,6 +35,7 @@ export default function DashboardScreen() {
     seenWelcome: false,
   });
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadAppData();
@@ -41,6 +43,8 @@ export default function DashboardScreen() {
 
   const loadAppData = async () => {
     try {
+      setRefreshing(true);
+      
       // Load local app data
       const localData = await getAppData();
       setAppData(localData);
@@ -60,6 +64,17 @@ export default function DashboardScreen() {
       if (!localData.seenWelcome) {
         setShowWelcomeModal(true);
       }
+      
+      // Show success message on refresh
+      if (refreshing) {
+        Toast.show({
+          type: 'success',
+          text1: 'Dashboard Updated',
+          text2: 'Your dashboard data has been refreshed successfully',
+          position: 'top',
+          visibilityTime: 2000,
+        });
+      }
     } catch (error) {
       // Show detailed error message
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -71,6 +86,8 @@ export default function DashboardScreen() {
         visibilityTime: 4000,
       });
       // Keep existing data if API fails
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -99,23 +116,40 @@ export default function DashboardScreen() {
   const handleLogout = async () => {
     try {
       await authService.logout();
-      await clearAuthData();
-      Alert.alert('Logged Out', 'You have been logged out successfully.');
-      // The App component will automatically redirect to login
+      // clearAuthData is already called in authService.logout()
+      // The App component will automatically redirect to login when userToken becomes null
     } catch (error) {
-      Alert.alert('Error', 'Failed to logout. Please try again.');
+      // Error is already handled in authService.logout()
+      console.log('Logout completed');
     }
   };
 
   const handleQuickAction = (action: string) => {
-    // Test toast functionality
-    Toast.show({
-      type: 'error',
-      text1: 'Test Error',
-      text2: `This is a test error for ${action}`,
-      position: 'top',
-      visibilityTime: 4000,
-    });
+    switch (action) {
+      case 'Withdraw':
+        (navigation as any).navigate('More', { screen: 'Withdraw' });
+        break;
+      case 'Transaction History':
+        (navigation as any).navigate('More', { screen: 'TransactionHistory' });
+        break;
+      case 'Mining':
+        (navigation as any).navigate('More', { screen: 'Mining' });
+        break;
+      case 'Active Investments':
+        (navigation as any).navigate('More', { screen: 'ActiveInvestments' });
+        break;
+      case 'Referrals':
+        (navigation as any).navigate('More', { screen: 'Referrals' });
+        break;
+      default:
+        Toast.show({
+          type: 'info',
+          text1: 'Coming Soon',
+          text2: `${action} feature will be available soon`,
+          position: 'top',
+          visibilityTime: 3000,
+        });
+    }
   };
 
   const networkLevelsData = [
@@ -128,7 +162,13 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={loadAppData} />
+        }
+      >
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTop}>
@@ -207,6 +247,17 @@ export default function DashboardScreen() {
                 <Ionicons name="cube" size={24} color="#FFFFFF" />
               </View>
               <Text style={styles.quickActionText}>Mining</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.quickActionButton} 
+              onPress={() => handleQuickAction('Active Investments')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#10B981' }]}>
+                <Ionicons name="trending-up" size={24} color="#FFFFFF" />
+              </View>
+              <Text style={styles.quickActionText}>Investments</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 

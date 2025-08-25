@@ -1,10 +1,18 @@
 import * as SecureStore from 'expo-secure-store';
 
 export interface User {
-  id: string;
+  id: number;
   email: string;
-  fullName: string;
-  referralCode: string;
+  name: string;
+  phone?: string;
+  referral_code?: string;
+  role: string;
+  status: string;
+  user_code: string;
+  user_name?: string;
+  created_at: string;
+  updated_at: string;
+  email_verified_at?: string;
 }
 
 export interface AuthData {

@@ -1,0 +1,48 @@
+# OS/editor junk
+.DS_Store
+Thumbs.db
+.idea
+.vscode
+*.log
+
+# Git & CI
+.git
+.github
+.gitlab
+.gitmodules
+
+# Dependencies & caches
+node_modules
+pnpm-lock.yaml
+.yarn
+.yarn/cache
+.npm
+package-lock.json # optional if you use yarn/pnpm lockfile
+.expo
+.expo-shared
+
+# Build outputs
+dist
+build
+web-build
+coverage
+*.map
+
+# Native folders (EAS will run prebuild for managed workflow)
+android
+ios
+
+# Tests & docs
+__tests__
+tests
+docs
+
+# Large media not needed for build
+*.mp4
+*.mov
+*.zip
+*.psd
+
+# Local env files (use EAS secrets instead)
+.env
+.env.*

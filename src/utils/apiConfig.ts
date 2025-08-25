@@ -1,7 +1,7 @@
 // API Configuration
 export const API_CONFIG = {
-  // Use environment variable or fallback to localhost for development
-  BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000/api',
+  // Production API URL
+  BASE_URL: 'https://investpro.hmstech.xyz/api',
   API_VERSION: '',
   TIMEOUT: 10000,
   RETRY_ATTEMPTS: 3,
@@ -29,11 +29,15 @@ export const API_CONFIG = {
     INVESTMENT: {
       PLANS: '/investment_plan',
       INVESTMENT: '/investment',
+      USER_INVESTMENTS: '/investment',
     },
     DEPOSIT: {
       CREATE: '/deposits',
       APPROVAL: '/approval-deposits',
       USER_DEPOSITS: '/user-deposits',
+    },
+    PLAN: {
+      ACTIVATE: '/activate-plan',
     },
     WITHDRAWAL: {
       CREATE: '/withdrawal',

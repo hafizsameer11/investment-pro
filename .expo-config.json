@@ -1,0 +1,65 @@
+{
+    "name": "InvestPro",
+    "slug": "invest-pro",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+        "image": "./assets/icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+        "**/*"
+    ],
+    "ios": {
+        "supportsTablet": true,
+        "bundleIdentifier": "com.hmstech11.investpro",
+        "infoPlist": {
+            "ITSAppUsesNonExemptEncryption": false
+        }
+    },
+    "android": {
+        "adaptiveIcon": {
+            "foregroundImage": "./assets/adaptive-icon.png",
+            "backgroundColor": "#ffffff"
+        },
+        "package": "com.hmstech11.investpro"
+    },
+    "web": {
+        "favicon": "./assets/icon.png"
+    },
+    "sdkVersion": "53.0.0",
+    "plugins": [
+        "expo-font",
+        "expo-secure-store"
+    ],
+    "extra": {
+        "eas": {
+            "projectId": "a75d9454-71f8-4752-985f-6552a455326c"
+        }
+    },
+    "owner": "hmstech11",
+    "_internal": {
+        "isDebug": false,
+        "projectRoot": "/Users/macbookpro/invest-pro",
+        "dynamicConfigPath": {},
+        "staticConfigPath": "/Users/macbookpro/invest-pro/app.json",
+        "packageJsonPath": "/Users/macbookpro/invest-pro/package.json",
+        "pluginHistory": {
+            "expo-font": {
+                "name": "expo-font",
+                "version": "13.3.2"
+            },
+            "expo-secure-store": {
+                "name": "expo-secure-store",
+                "version": "14.2.4"
+            }
+        }
+    },
+    "platforms": [
+        "ios",
+        "android"
+    ]
+}

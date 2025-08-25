@@ -41,6 +41,12 @@ class ApiService {
     this.api.interceptors.request.use(
       async (config) => {
         const token = await SecureStore.getItemAsync('authToken');
+        console.log('🔵 API Request:', {
+          url: config.url,
+          method: config.method,
+          hasToken: !!token,
+          tokenPreview: token ? `${token.substring(0, 10)}...` : 'none'
+        });
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -54,9 +60,19 @@ class ApiService {
     // Response interceptor for error handling
     this.api.interceptors.response.use(
       (response: AxiosResponse) => {
+        console.log('✅ API Response:', {
+          url: response.config.url,
+          status: response.status,
+          data: response.data
+        });
         return response;
       },
       (error: AxiosError) => {
+        console.log('🔴 API Error Response:', {
+          url: error.config?.url,
+          status: error.response?.status,
+          data: error.response?.data
+        });
         this.handleApiError(error);
         return Promise.reject(error);
       }
@@ -83,6 +99,18 @@ class ApiService {
     let message = 'Something went wrong. Please try again.';
     let status = 500;
     let title = 'Error';
+
+    // Console log for debugging
+    console.log('🔴 API Error Details:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: error.config?.headers
+      }
+    });
 
     if (error.response) {
       status = error.response.status;
@@ -143,6 +171,7 @@ class ApiService {
   // Format validation errors from Laravel
   private formatValidationErrors(errors: Record<string, string[]> | undefined): string {
     if (!errors) return 'Validation failed.';
+    console.log(errors);
     
     const errorMessages = Object.values(errors).flat();
     return errorMessages.join(', ');
@@ -159,11 +188,25 @@ class ApiService {
   }
 
   // Generic POST request
-  async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async post<T>(endpoint: string, data?: any, config?: any): Promise<ApiResponse<T>> {
     try {
-      const response = await this.api.post(endpoint, data);
+      console.log('🔵 API POST Request:', {
+        url: `${this.api.defaults.baseURL}${endpoint}`,
+        data: data,
+        headers: config?.headers || this.api.defaults.headers
+      });
+      
+      const response = await this.api.post(endpoint, data, config);
+      
+      console.log('🟢 API POST Response:', {
+        status: response.status,
+        data: response.data,
+        success: response.data?.success
+      });
+      
       return response.data;
     } catch (error) {
+      console.log('🔴 API POST Error:', error);
       throw error;
     }
   }

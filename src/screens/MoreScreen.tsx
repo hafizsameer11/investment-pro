@@ -15,6 +15,14 @@ interface MoreMenuItem {
 
 const menuItems: MoreMenuItem[] = [
   {
+    id: 'active-investments',
+    title: 'Active Investments',
+    subtitle: 'Track your investment progress and earnings',
+    icon: 'trending-up',
+    route: 'ActiveInvestments',
+    color: '#10B981',
+  },
+  {
     id: 'withdraw',
     title: 'Withdraw',
     subtitle: 'Withdraw your earnings',
@@ -36,7 +44,7 @@ const menuItems: MoreMenuItem[] = [
     subtitle: 'View your deposits and withdrawals',
     icon: 'time',
     route: 'TransactionHistory',
-    color: '#10B981',
+    color: '#8B5CF6',
   },
   {
     id: 'referrals',
@@ -52,7 +60,7 @@ const menuItems: MoreMenuItem[] = [
     subtitle: 'Learn more about InvestPro',
     icon: 'information-circle',
     route: 'About',
-    color: '#8B5CF6',
+    color: '#6B7280',
   },
 ];
 

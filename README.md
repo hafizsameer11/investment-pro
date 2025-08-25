@@ -55,7 +55,7 @@ A beautiful, production-quality React Native investment platform built with Expo
    ```
    Edit `.env` and add your API URL:
    ```
-   EXPO_PUBLIC_API_URL=https://your-api-url.com
+   EXPO_PUBLIC_API_URL=https://investpro.hmstech.xyz/api
    ```
 
 4. **Start the development server**
@@ -97,7 +97,7 @@ npm run typecheck
 Create a `.env` file in the root directory:
 
 ```env
-EXPO_PUBLIC_API_URL=https://api.investpro.com
+EXPO_PUBLIC_API_URL=https://investpro.hmstech.xyz/api
 ```
 
 ### API Integration

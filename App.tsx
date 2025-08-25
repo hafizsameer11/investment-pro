@@ -19,9 +19,11 @@ import AboutScreen from './src/screens/AboutScreen';
 import MiningScreen from './src/screens/MiningScreen';
 import TransactionHistoryScreen from './src/screens/TransactionHistoryScreen';
 import MoreScreen from './src/screens/MoreScreen';
+import ActiveInvestmentsScreen from './src/screens/ActiveInvestmentsScreen';
 
 // Import auth utilities
 import { isAuthenticated } from './src/utils/auth';
+import { authService } from './src/services/authService';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -45,6 +47,11 @@ function MoreStack() {
         name="MoreMain" 
         component={MoreScreen} 
         options={{ title: 'More Options' }}
+      />
+      <Stack.Screen 
+        name="ActiveInvestments" 
+        component={ActiveInvestmentsScreen} 
+        options={{ title: 'Active Investments' }}
       />
       <Stack.Screen 
         name="Mining" 
@@ -144,6 +151,16 @@ export default function App() {
   useEffect(() => {
     // Check if user is authenticated
     checkAuth();
+    
+    // Set up auth state change callback
+    authService.onAuthStateChange = (token: string | null) => {
+      setUserToken(token);
+    };
+    
+    // Cleanup on unmount
+    return () => {
+      authService.onAuthStateChange = null;
+    };
   }, []);
 
   // Function to update auth state (will be passed to screens)

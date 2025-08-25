@@ -87,12 +87,32 @@ USE_MOCK_DATA: process.env.EXPO_PUBLIC_USE_MOCK_DATA === 'true',
 
 // Helper function to check if we should use mock data
 export const shouldUseMockData = (error: any): boolean => {
-  if (!DEV_CONFIG.USE_MOCK_DATA) return false;
+  console.log('🔍 Checking if should use mock data:', {
+    USE_MOCK_DATA: DEV_CONFIG.USE_MOCK_DATA,
+    errorCode: error.code,
+    errorStatus: error.response?.status,
+    errorMessage: error.message
+  });
+  
+  if (!DEV_CONFIG.USE_MOCK_DATA) {
+    console.log('🟡 Mock data disabled, not using mock data');
+    return false;
+  }
   
   // Use mock data for network errors or 500 errors
-  if (error.code === 'NETWORK_ERROR' || error.code === 'ERR_NETWORK') return true;
-  if (error.response?.status === 500) return true;
-  if (error.response?.status === 0) return true; // Network timeout
+  if (error.code === 'NETWORK_ERROR' || error.code === 'ERR_NETWORK') {
+    console.log('🟡 Using mock data due to network error');
+    return true;
+  }
+  if (error.response?.status === 500) {
+    console.log('🟡 Using mock data due to 500 error');
+    return true;
+  }
+  if (error.response?.status === 0) {
+    console.log('🟡 Using mock data due to network timeout');
+    return true;
+  }
   
+  console.log('🟡 Not using mock data, error does not qualify');
   return false;
 };

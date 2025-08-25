@@ -22,11 +22,16 @@ export const dashboardService = {
   // Get Dashboard Data
   async getDashboard(): Promise<{ success: boolean; message: string; data: DashboardData }> {
     try {
+      console.log('🔵 Fetching dashboard data from API...');
       const response = await apiService.get<DashboardData>(API_CONFIG.ENDPOINTS.DASHBOARD.DASHBOARD);
+      console.log('✅ Dashboard API response:', response);
       return response;
     } catch (error) {
+      console.log('🔴 Dashboard API error:', error);
+      
       // Return mock data for development when API is not available
       if (shouldUseMockData(error)) {
+        console.log('🟡 Using mock data due to API error');
         return { success: true, message: 'Mock data', data: DEV_CONFIG.MOCK_DASHBOARD };
       }
       

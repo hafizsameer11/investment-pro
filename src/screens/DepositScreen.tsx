@@ -6,7 +6,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useForm, Controller } from 'react-hook-form';
@@ -37,6 +39,7 @@ export default function DepositScreen() {
   const [chains, setChains] = useState<Chain[]>([]);
   const [selectedChain, setSelectedChain] = useState<Chain | null>(null);
   const [loadingChains, setLoadingChains] = useState(true);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
 
   const {
     control,
@@ -90,11 +93,55 @@ export default function DepositScreen() {
     Alert.alert('Copied!', 'Address copied to clipboard');
   };
 
+  const pickImage = async () => {
+    try {
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please grant camera roll permissions to upload images.');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setUploadedImage(result.assets[0].uri);
+        Toast.show({
+          type: 'success',
+          text1: 'Image Selected',
+          text2: 'Transaction screenshot uploaded successfully',
+          position: 'top',
+          visibilityTime: 3000,
+        });
+      }
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Upload Error',
+        text2: 'Failed to upload image. Please try again.',
+        position: 'top',
+        visibilityTime: 4000,
+      });
+    }
+  };
+
   const onSubmit = async (data: DepositFormData) => {
     if (!selectedChain) {
       Alert.alert('Error', 'Please select a cryptocurrency first.');
       return;
     }
+
+    // Image upload is optional for now
+    // if (!uploadedImage) {
+    //   Alert.alert('Error', 'Please upload a transaction screenshot.');
+    //   return;
+    // }
 
     setIsSubmitting(true);
     try {
@@ -103,13 +150,11 @@ export default function DepositScreen() {
         transaction_hash: data.transactionHash,
         crypto_type: data.crypto,
         chain_id: selectedChain.id,
+        notes: data.notes,
+        deposit_picture: uploadedImage || null, // Include the uploaded image or null
       };
       
-      // For now, we'll use plan ID 1 as default
-      // In a real app, you'd get the plan ID from navigation params
-      const planId = 1;
-      
-      await investmentService.createDeposit(planId, depositData);
+      await investmentService.createDeposit(depositData);
       Toast.show({
         type: 'success',
         text1: 'Success',
@@ -207,11 +252,31 @@ export default function DepositScreen() {
 
           <View style={styles.uploadSection}>
             <Text style={styles.uploadLabel}>Upload Transaction Screenshot</Text>
-            <TouchableOpacity style={styles.uploadBox} onPress={() => Alert.alert('Upload', 'File picker would open here')}>
-              <Ionicons name="cloud-upload" size={32} color="#6B7280" />
-              <Text style={styles.uploadText}>Upload screenshot of your crypto transaction</Text>
-              <Button title="Choose File" onPress={() => Alert.alert('Upload', 'File picker would open here')} variant="secondary" />
-            </TouchableOpacity>
+            {uploadedImage ? (
+              <View style={styles.uploadedImageContainer}>
+                <Image source={{ uri: uploadedImage }} style={styles.uploadedImage} />
+                <View style={styles.imageActions}>
+                  <Button 
+                    title="Change Image" 
+                    onPress={pickImage} 
+                    variant="secondary" 
+                    style={styles.changeImageButton}
+                  />
+                  <TouchableOpacity 
+                    style={styles.removeImageButton}
+                    onPress={() => setUploadedImage(null)}
+                  >
+                    <Ionicons name="trash" size={20} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.uploadBox} onPress={pickImage}>
+                <Ionicons name="cloud-upload" size={32} color="#6B7280" />
+                <Text style={styles.uploadText}>Tap to upload screenshot of your crypto transaction</Text>
+                <Text style={styles.uploadHint}>Supports JPG, PNG up to 5MB</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <Controller
@@ -394,6 +459,39 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     marginVertical: 12,
+  },
+  uploadHint: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  uploadedImageContainer: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+  },
+  uploadedImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  imageActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  changeImageButton: {
+    flex: 1,
+    marginRight: 8,
+  },
+  removeImageButton: {
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: '#FEF2F2',
   },
   submitButton: {
     marginTop: 8,

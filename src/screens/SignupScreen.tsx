@@ -60,12 +60,23 @@ export default function SignupScreen({ navigation, route }: SignupScreenProps) {
       
       const response = await authService.register(registerData);
       
-      if (response.status === 'success') {
-        Alert.alert('Success', 'Account created successfully! Please login.');
-        navigation.navigate('Login');
+      if (response.success) {
+        Alert.alert(
+          'Success', 
+          'Account created successfully! Please login with your credentials.',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate('Login')
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Error', response.message || 'Signup failed. Please try again.');
       }
     } catch (error) {
-      Alert.alert('Error', 'Signup failed. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Signup failed. Please try again.';
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }

@@ -40,21 +40,27 @@ export default function LoginScreen({ navigation, route }: LoginScreenProps) {
   });
 
   const onSubmit = async (data: LoginFormData) => {
+    console.log('🔵 Login Form Submit:', { email: data.email, password: '[HIDDEN]' });
     setIsLoading(true);
     try {
       const response = await authService.login(data);
       
-      if (response.status) {
-        // Update auth state to trigger navigation to main app
-        if (updateAuthState) {
-          updateAuthState('dummy-token');
-        }
-        // Show success message briefly before redirect
-        setTimeout(() => {
-          // The redirect will happen automatically via App.tsx state change
-        }, 500);
+      console.log('🟢 Login Success Response:', {
+        hasToken: !!response.token,
+        hasUser: !!response.user,
+        tokenType: typeof response.token
+      });
+      
+      // Update auth state to trigger navigation to main app
+      if (updateAuthState && response.token) {
+        updateAuthState(response.token);
       }
+      // Show success message briefly before redirect
+      setTimeout(() => {
+        // The redirect will happen automatically via App.tsx state change
+      }, 500);
     } catch (error) {
+      console.log('🔴 Login Screen Error:', error);
       Alert.alert('Error', 'Login failed. Please check your credentials and try again.');
     } finally {
       setIsLoading(false);
