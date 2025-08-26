@@ -20,6 +20,7 @@ import { getAppData, updateAppData } from '../utils/appData';
 import { clearAuthData } from '../utils/auth';
 import { dashboardService } from '../services/dashboardService';
 import { authService } from '../services/authService';
+import { transactionService, UserTransaction } from '../services/transactionService';
 import Toast from 'react-native-toast-message';
 
 export default function DashboardScreen() {
@@ -36,6 +37,8 @@ export default function DashboardScreen() {
   });
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [recentTransactions, setRecentTransactions] = useState<UserTransaction[]>([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(true);
 
   useEffect(() => {
     loadAppData();
@@ -44,22 +47,30 @@ export default function DashboardScreen() {
   const loadAppData = async () => {
     try {
       setRefreshing(true);
+      setLoadingTransactions(true);
       
       // Load local app data
       const localData = await getAppData();
       setAppData(localData);
       
-      // Load dashboard data from API
-      const { data } = await dashboardService.getDashboard();
+      // Load dashboard data and transactions in parallel
+      const [dashboardResponse, transactions] = await Promise.all([
+        dashboardService.getDashboard(),
+        transactionService.getRecentTransactions()
+      ]);
       
+      console.log("transaction data",recentTransactions)
       // Safely update app data with API response using snake_case keys
       setAppData(prev => ({
         ...prev,
-        totalBalance: data?.total_balance ?? prev.totalBalance,
-        activePlans: data?.active_plans ?? prev.activePlans,
-        todaysProfit: data?.daily_profit ?? prev.todaysProfit,
-        networkEarnings: data?.referral_bonus_earned ?? prev.networkEarnings,
+        totalBalance: dashboardResponse.data?.total_balance ?? prev.totalBalance,
+        activePlans: dashboardResponse.data?.active_plans ?? prev.activePlans,
+        todaysProfit: dashboardResponse.data?.daily_profit ?? prev.todaysProfit,
+        networkEarnings: dashboardResponse.data?.referral_bonus_earned ?? prev.networkEarnings,
       }));
+      
+      // Set recent transactions
+      setRecentTransactions(transactions);
       
       if (!localData.seenWelcome) {
         setShowWelcomeModal(true);
@@ -88,6 +99,7 @@ export default function DashboardScreen() {
       // Keep existing data if API fails
     } finally {
       setRefreshing(false);
+      setLoadingTransactions(false);
     }
   };
 
@@ -96,6 +108,56 @@ export default function DashboardScreen() {
       setShowWelcomeModal(true);
     }
   }, [appData.seenWelcome]);
+
+  // Helper functions for transaction display
+  const getTransactionIcon = (type: string): string => {
+    if (!type) return 'card';
+    switch (type) {
+      case 'deposit': return 'arrow-down-circle';
+      case 'withdrawal': return 'arrow-up-circle';
+      case 'investment': return 'trending-up';
+      case 'profit': return 'gift';
+      case 'referral': return 'people';
+      case 'unknown': return 'card';
+      default: return 'card';
+    }
+  };
+
+  const getTransactionColor = (type: string): string => {
+    if (!type) return '#6B7280';
+    switch (type) {
+      case 'deposit': return '#10B981';
+      case 'withdrawal': return '#EF4444';
+      case 'investment': return '#3B82F6';
+      case 'profit': return '#F59E0B';
+      case 'referral': return '#8B5CF6';
+      case 'unknown': return '#6B7280';
+      default: return '#6B7280';
+    }
+  };
+
+  const getTransactionTypeLabel = (type: string): string => {
+    if (!type) return 'Transaction';
+    switch (type) {
+      case 'deposit': return 'Deposit';
+      case 'withdrawal': return 'Withdrawal';
+      case 'investment': return 'Investment';
+      case 'profit': return 'Profit';
+      case 'referral': return 'Referral Bonus';
+      case 'unknown': return 'Transaction';
+      default: return type.charAt(0).toUpperCase() + type.slice(1);
+    }
+  };
+
+  const getStatusColor = (status: string): string => {
+    if (!status) return '#F3F4F6';
+    switch (status) {
+      case 'completed': return '#D1FAE5';
+      case 'pending': return '#FEF3C7';
+      case 'failed': return '#FEE2E2';
+      default: return '#F3F4F6';
+    }
+  };
 
   const handleGetStarted = async () => {
     await updateAppData({ seenWelcome: true });
@@ -278,11 +340,54 @@ export default function DashboardScreen() {
         {/* Recent Activity */}
         <Card>
           <SectionTitle title="Recent Activity" subtitle="Your latest transactions." />
-          <View style={styles.emptyState}>
-            <Ionicons name="time" size={48} color="#D1D5DB" />
-            <Text style={styles.emptyStateText}>No transactions yet.</Text>
-            <Text style={styles.emptyStateSubtext}>Your transaction history will appear here.</Text>
-          </View>
+          
+          {loadingTransactions ? (
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>Loading transactions...</Text>
+            </View>
+          ) : recentTransactions.length > 0 ? (
+            <View style={styles.transactionsList}>
+              {recentTransactions.map((transaction) => (
+                <View key={transaction.id || Math.random()} style={styles.transactionItem}>
+                  <View style={styles.transactionIcon}>
+                    <Ionicons 
+                      name={getTransactionIcon(transaction.type) as any} 
+                      size={20} 
+                      color={getTransactionColor(transaction.type)} 
+                    />
+                  </View>
+                  <View style={styles.transactionInfo}>
+                    <Text style={styles.transactionType}>{getTransactionTypeLabel(transaction.type)}</Text>
+                    <Text style={styles.transactionDate}>
+                      {transaction.created_at ? new Date(transaction.created_at).toLocaleDateString() : 'Unknown Date'}
+                    </Text>
+                  </View>
+                  <View style={styles.transactionAmount}>
+                    <Text style={[
+                      styles.transactionAmountText,
+                      { color: getTransactionColor(transaction.type) }
+                    ]}>
+                      {transaction.type === 'withdrawal' ? '-' : '+'}{usd(transaction.amount || 0)}
+                    </Text>
+                    <View style={[
+                      styles.transactionStatus,
+                      { backgroundColor: getStatusColor(transaction.status) }
+                    ]}>
+                      <Text style={styles.transactionStatusText}>
+                        {transaction.status ? transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1) : 'Unknown'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="time" size={48} color="#D1D5DB" />
+              <Text style={styles.emptyStateText}>No transactions yet.</Text>
+              <Text style={styles.emptyStateSubtext}>Your transaction history will appear here.</Text>
+            </View>
+          )}
         </Card>
 
         {/* Multi-Level Network Structure */}
@@ -293,7 +398,7 @@ export default function DashboardScreen() {
           />
           
           <View style={styles.networkGrid}>
-            {networkLevelsData.map((level) => (
+            {networkLevelsData?.map((level) => (
               <View key={level.level} style={[styles.networkLevel, { backgroundColor: level.color }]}>
                 <Text style={styles.levelNumber}>{level.referrals}</Text>
                 <Text style={styles.levelLabel}>Level {level.level}</Text>
@@ -318,7 +423,7 @@ export default function DashboardScreen() {
           />
           
           <View style={styles.commissionStructure}>
-            {networkLevelsData.map((level) => (
+            {networkLevelsData?.map((level) => (
               <View key={level.level} style={styles.commissionRow}>
                 <Text style={styles.commissionLevel}>Level {level.level} ({level.level === 1 ? 'Direct Referrals' : `${level.level}${level.level === 2 ? 'nd' : level.level === 3 ? 'rd' : 'th'} Generation`})</Text>
                 <Text style={styles.commissionBonus}>{level.bonus} Bonus</Text>
@@ -336,31 +441,7 @@ export default function DashboardScreen() {
         </Card>
 
         {/* Support & Community */}
-        <Card>
-          <SectionTitle title="Support & Community" subtitle="Get help and connect with other investors." />
-          
-          <TouchableOpacity style={styles.supportCard} onPress={handleWhatsAppJoin}>
-            <View style={styles.supportIcon}>
-              <Ionicons name="logo-whatsapp" size={24} color="#25D366" />
-            </View>
-            <View style={styles.supportContent}>
-              <Text style={styles.supportTitle}>Join WhatsApp Channel</Text>
-              <Text style={styles.supportDescription}>Get updates, tips, and connect with other investors.</Text>
-              <Text style={styles.supportLink}>https://whatsapp.com/channel/0029Vb6RLxBEFeXctph9WY2I</Text>
-            </View>
-          </TouchableOpacity>
 
-          <TouchableOpacity style={styles.supportCard} onPress={handleEmailSupport}>
-            <View style={styles.supportIcon}>
-              <Ionicons name="mail" size={24} color="#3B82F6" />
-            </View>
-            <View style={styles.supportContent}>
-              <Text style={styles.supportTitle}>Email Support</Text>
-              <Text style={styles.supportDescription}>Contact our support team for assistance.</Text>
-              <Text style={styles.supportLink}>info.investproteam@gmail.com</Text>
-            </View>
-          </TouchableOpacity>
-        </Card>
       </ScrollView>
 
       {/* Welcome Modal */}
@@ -615,5 +696,66 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#374151',
     textAlign: 'center',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  transactionsList: {
+    gap: 12,
+  },
+  transactionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  transactionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  transactionInfo: {
+    flex: 1,
+  },
+  transactionType: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  transactionDate: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  transactionAmount: {
+    alignItems: 'flex-end',
+  },
+  transactionAmountText: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  transactionStatus: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  transactionStatusText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#374151',
   },
 });

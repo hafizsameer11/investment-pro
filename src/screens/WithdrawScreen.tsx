@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +18,8 @@ import { Card, SectionTitle, Button, Input } from '../components/UI';
 import { getAppData } from '../utils/appData';
 import { usd } from '../utils/format';
 import { investmentService } from '../services/investmentService';
+import { dashboardService } from '../services/dashboardService';
+import { otpService } from '../services/otpService';
 import Toast from 'react-native-toast-message';
 
 const withdrawSchema = z.object({
@@ -27,7 +30,7 @@ const withdrawSchema = z.object({
   crypto: z.string().min(1, 'Please select a cryptocurrency'),
   walletAddress: z.string().min(1, 'Wallet address is required'),
   password: z.string().min(1, 'Account password is required'),
-  otp: z.string().optional(),
+  otp: z.string().length(6, 'OTP must be 6 digits'),
   notes: z.string().optional(),
 });
 
@@ -36,14 +39,53 @@ type WithdrawFormData = z.infer<typeof withdrawSchema>;
 export default function WithdrawScreen() {
   const [totalBalance, setTotalBalance] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadAppData();
   }, []);
 
   const loadAppData = async () => {
-    const data = await getAppData();
-    setTotalBalance(data.totalBalance);
+    try {
+      if (!refreshing) { setRefreshing(true); }
+      
+      // Load latest balance from API
+      console.log('🔵 Loading balance from dashboard API...');
+      const dashboardResponse = await dashboardService.getDashboard();
+      console.log('🟢 Dashboard response:', dashboardResponse);
+      
+      if (dashboardResponse.success && dashboardResponse.data) {
+        console.log('🟢 Dashboard data:', dashboardResponse.data);
+        console.log('🟢 Total balance:', dashboardResponse.data.total_balance);
+        setTotalBalance(dashboardResponse.data.total_balance);
+        console.log('🟢 Balance set to state:', dashboardResponse.data.total_balance);
+      } else {
+        console.log('🔴 Dashboard response not successful:', dashboardResponse);
+        // Fallback to local data
+        const data = await getAppData();
+        console.log('🟡 Using local data:', data.totalBalance);
+        setTotalBalance(data.totalBalance);
+      }
+      
+      // Show success message on refresh
+      if (refreshing) {
+        Toast.show({
+          type: 'success',
+          text1: 'Balance Updated',
+          text2: 'Your balance has been refreshed successfully',
+          position: 'top',
+          visibilityTime: 2000,
+        });
+      }
+    } catch (error) {
+      console.log('🔴 Error loading balance:', error);
+      // Fallback to local data
+      const data = await getAppData();
+      console.log('🟡 Using local data on error:', data.totalBalance);
+      setTotalBalance(data.totalBalance);
+    } finally {
+      setRefreshing(false);
+    }
   };
   const [otpSent, setOtpSent] = useState(false);
   const [showOtpField, setShowOtpField] = useState(process.env.EXPO_PUBLIC_ENABLE_WITHDRAW_OTP === 'true');
@@ -71,6 +113,17 @@ export default function WithdrawScreen() {
   const isAmountValid = amount >= 50 && amount <= totalBalance;
 
   const onSubmit = async (data: WithdrawFormData) => {
+    if (!otpSent) {
+      Toast.show({
+        type: 'error',
+        text1: 'OTP Required',
+        text2: 'Please send OTP first before submitting withdrawal',
+        position: 'top',
+        visibilityTime: 4000,
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const withdrawalData = {
@@ -91,6 +144,7 @@ export default function WithdrawScreen() {
         visibilityTime: 4000,
       });
       reset();
+      setOtpSent(false);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       Toast.show({
@@ -107,10 +161,7 @@ export default function WithdrawScreen() {
 
   const handleSendOTP = async () => {
     try {
-      // Call OTP endpoint if available
-      if (process.env.EXPO_PUBLIC_ENABLE_WITHDRAW_OTP === 'true') {
-        await investmentService.requestOtp();
-      }
+      await otpService.sendWithdrawalOtp();
       setOtpSent(true);
       Toast.show({
         type: 'success',
@@ -149,7 +200,18 @@ export default function WithdrawScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={loadAppData}
+            colors={['#0EA5E9']}
+            tintColor="#0EA5E9"
+          />
+        }
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Crypto Withdrawal</Text>
@@ -169,6 +231,8 @@ export default function WithdrawScreen() {
             <Text style={styles.balanceAmount}>{usd(totalBalance)}</Text>
             <Text style={styles.balanceLabel}>Available for withdrawal</Text>
           </View>
+          
+
 
           <View style={styles.limitsContainer}>
             <View style={styles.limitItem}>
@@ -334,7 +398,7 @@ export default function WithdrawScreen() {
           <Button
             title={isSubmitting ? "Submitting..." : "Submit Withdrawal Request"}
             onPress={handleSubmit(onSubmit)}
-            disabled={isSubmitting || !isAmountValid}
+            disabled={isSubmitting || !isAmountValid || !otpSent}
             style={styles.submitButton}
           />
         </Card>
@@ -349,7 +413,7 @@ export default function WithdrawScreen() {
           <View style={styles.infoGrid}>
             <View style={styles.infoColumn}>
               <Text style={styles.infoColumnTitle}>Processing Times</Text>
-              {processingTimes.map((item, index) => (
+              {processingTimes?.map((item, index) => (
                 <View key={index} style={styles.infoRow}>
                   <Text style={styles.infoCrypto}>{item.crypto}</Text>
                   <Text style={styles.infoValue}>{item.time}</Text>
@@ -359,7 +423,7 @@ export default function WithdrawScreen() {
             
             <View style={styles.infoColumn}>
               <Text style={styles.infoColumnTitle}>Network Fees</Text>
-              {networkFees.map((item, index) => (
+              {networkFees?.map((item, index) => (
                 <View key={index} style={styles.infoRow}>
                   <Text style={styles.infoCrypto}>{item.crypto}</Text>
                   <Text style={styles.infoValue}>{item.fee}</Text>

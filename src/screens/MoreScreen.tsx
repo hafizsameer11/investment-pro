@@ -15,6 +15,22 @@ interface MoreMenuItem {
 
 const menuItems: MoreMenuItem[] = [
   {
+    id: 'profile',
+    title: 'User Profile',
+    subtitle: 'View and manage your account information',
+    icon: 'person-circle',
+    route: 'UserProfile',
+    color: '#0EA5E9',
+  },
+  {
+    id: 'kyc-upload',
+    title: 'KYC Verification',
+    subtitle: 'Upload identity documents for verification',
+    icon: 'shield-checkmark',
+    route: 'KycUpload',
+    color: '#8B5CF6',
+  },
+  {
     id: 'active-investments',
     title: 'Active Investments',
     subtitle: 'Track your investment progress and earnings',
@@ -102,7 +118,7 @@ export default function MoreScreen({ navigation }: MoreScreenProps) {
 
         <Card style={styles.menuCard}>
           <SectionTitle title="Features" />
-          {menuItems.map(renderMenuItem)}
+          {menuItems?.map(renderMenuItem)}
         </Card>
 
         <Card style={styles.infoCard}>

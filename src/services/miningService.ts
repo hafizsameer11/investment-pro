@@ -27,9 +27,9 @@ export const miningService = {
   // Start mining session
   async startMining(): Promise<MiningSession> {
     try {
-      const response = await apiService.post<MiningSession>(API_CONFIG.ENDPOINTS.MINING.START);
+      const response = await apiService.post<any>(API_CONFIG.ENDPOINTS.MINING.START);
       showSuccessToast('Mining session started successfully!');
-      return response.data;
+      return response.data.data;
     } catch (error) {
       throw error;
     }
@@ -38,8 +38,8 @@ export const miningService = {
   // Get mining status
   async getMiningStatus(): Promise<MiningStatus> {
     try {
-      const response = await apiService.get<MiningStatus>(API_CONFIG.ENDPOINTS.MINING.STATUS);
-      return response.data;
+      const response = await apiService.get<any>(API_CONFIG.ENDPOINTS.MINING.STATUS);
+      return response.data.data;
     } catch (error) {
       throw error;
     }
@@ -48,9 +48,9 @@ export const miningService = {
   // Stop mining session
   async stopMining(): Promise<MiningSession> {
     try {
-      const response = await apiService.post<MiningSession>(API_CONFIG.ENDPOINTS.MINING.STOP);
+      const response = await apiService.post<any>(API_CONFIG.ENDPOINTS.MINING.STOP);
       showSuccessToast('Mining session stopped successfully!');
-      return response.data;
+      return response.data.data;
     } catch (error) {
       throw error;
     }
@@ -59,9 +59,9 @@ export const miningService = {
   // Claim mining rewards
   async claimRewards(): Promise<MiningSession> {
     try {
-      const response = await apiService.post<MiningSession>(API_CONFIG.ENDPOINTS.MINING.CLAIM_REWARDS);
+      const response = await apiService.post<any>(API_CONFIG.ENDPOINTS.MINING.CLAIM_REWARDS);
       showSuccessToast('Mining rewards claimed successfully!');
-      return response.data;
+      return response.data.data;
     } catch (error) {
       throw error;
     }

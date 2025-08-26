@@ -23,9 +23,35 @@ export const dashboardService = {
   async getDashboard(): Promise<{ success: boolean; message: string; data: DashboardData }> {
     try {
       console.log('🔵 Fetching dashboard data from API...');
-      const response = await apiService.get<DashboardData>(API_CONFIG.ENDPOINTS.DASHBOARD.DASHBOARD);
+      const response = await apiService.get<any>(API_CONFIG.ENDPOINTS.DASHBOARD.DASHBOARD);
       console.log('✅ Dashboard API response:', response);
-      return response;
+      
+      // Handle different response structures
+      if ((response as any).status === 'success' && response.data) {
+        console.log('🟢 Dashboard data found (top-level status):', response.data);
+        return {
+          success: true,
+          message: (response as any).message || 'Dashboard data retrieved successfully',
+          data: response.data as DashboardData
+        };
+      } else if (response.data && (response.data as any).status === 'success' && (response.data as any).data) {
+        console.log('🟢 Dashboard data found (nested structure):', (response.data as any).data);
+        return {
+          success: true,
+          message: (response.data as any).message || 'Dashboard data retrieved successfully',
+          data: (response.data as any).data as DashboardData
+        };
+      } else if (response.success && response.data) {
+        console.log('🟢 Dashboard data found (direct structure):', response.data);
+        return {
+          success: true,
+          message: response.message || 'Dashboard data retrieved successfully',
+          data: response.data as DashboardData
+        };
+      } else {
+        console.log('🔴 Invalid dashboard response structure:', response);
+        throw new Error('Invalid response structure from dashboard API');
+      }
     } catch (error) {
       console.log('🔴 Dashboard API error:', error);
       
@@ -52,8 +78,8 @@ export const dashboardService = {
   // Get About Data
   async getAbout(): Promise<AboutData> {
     try {
-      const response = await apiService.get<AboutData>(API_CONFIG.ENDPOINTS.DASHBOARD.ABOUT);
-      return response.data;
+      const response = await apiService.get<any>(API_CONFIG.ENDPOINTS.DASHBOARD.ABOUT);
+      return response.data.data;
     } catch (error) {
       throw error;
     }

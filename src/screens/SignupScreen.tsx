@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, Button, Input } from '../components/UI';
 import { authService } from '../services/authService';
+import { otpService } from '../services/otpService';
 
 const signupSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters'),
@@ -21,6 +22,7 @@ const signupSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
   confirmPassword: z.string(),
   referralCode: z.string().optional(),
+  otp: z.string().length(6, 'OTP must be 6 digits'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -38,16 +40,43 @@ export default function SignupScreen({ navigation, route }: SignupScreenProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
 
   const {
     control,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
   });
 
+  const handleSendOtp = async () => {
+    const email = getValues('email');
+    if (!email || !email.includes('@')) {
+      Alert.alert('Error', 'Please enter a valid email address first');
+      return;
+    }
+
+    setOtpLoading(true);
+    try {
+      await otpService.sendSignupOtp(email);
+      setOtpSent(true);
+      Alert.alert('OTP Sent', 'Verification code has been sent to your email');
+    } catch (error) {
+      // Error is already handled in otpService
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
   const onSubmit = async (data: SignupFormData) => {
+    if (!otpSent) {
+      Alert.alert('Error', 'Please send and verify OTP first');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const registerData = {
@@ -56,6 +85,7 @@ export default function SignupScreen({ navigation, route }: SignupScreenProps) {
         phone: data.phone,
         password: data.password,
         referral_code: data.referralCode,
+        otp: data.otp,
       };
       
       const response = await authService.register(registerData);
@@ -72,7 +102,7 @@ export default function SignupScreen({ navigation, route }: SignupScreenProps) {
           ]
         );
       } else {
-        Alert.alert('Error', response.message || 'Signup failed. Please try again.');
+        Alert.alert('Success', response.message || 'Signup failed. Please try again.');
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Signup failed. Please try again.';
@@ -200,15 +230,43 @@ export default function SignupScreen({ navigation, route }: SignupScreenProps) {
               value={value}
               onChangeText={onChange}
               error={errors.referralCode?.message}
-              autoCapitalize="characters"
+              autoCapitalize="none"
             />
           )}
         />
 
+        <View style={styles.otpContainer}>
+          <Controller
+            control={control}
+            name="otp"
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label="Email Verification (OTP)"
+                placeholder="Enter 6-digit verification code"
+                value={value}
+                onChangeText={onChange}
+                error={errors.otp?.message}
+                keyboardType="numeric"
+                maxLength={6}
+                style={styles.otpInput}
+              />
+            )}
+          />
+          <TouchableOpacity 
+            style={[styles.sendOtpButton, otpSent && styles.sendOtpButtonDisabled]}
+            onPress={handleSendOtp}
+            disabled={otpLoading || otpSent}
+          >
+            <Text style={[styles.sendOtpText, otpSent && styles.sendOtpTextDisabled]}>
+              {otpLoading ? 'Sending...' : otpSent ? 'Sent' : 'Send Code'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <Button
           title={isLoading ? 'Creating Account...' : 'Create Account'}
           onPress={handleSubmit(onSubmit)}
-          disabled={isLoading}
+          disabled={isLoading || !otpSent}
           style={styles.signupButton}
         />
       </Card>
@@ -254,6 +312,34 @@ const styles = StyleSheet.create({
   },
   signupButton: {
     marginTop: 8,
+  },
+  otpContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 12,
+    marginTop: 8,
+  },
+  otpInput: {
+    flex: 1,
+  },
+  sendOtpButton: {
+    backgroundColor: '#0EA5E9',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  sendOtpButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
+  sendOtpText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  sendOtpTextDisabled: {
+    color: '#E5E7EB',
   },
   footer: {
     flexDirection: 'row',

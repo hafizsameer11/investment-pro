@@ -45,7 +45,8 @@ class ApiService {
           url: config.url,
           method: config.method,
           hasToken: !!token,
-          tokenPreview: token ? `${token.substring(0, 10)}...` : 'none'
+          tokenPreview: token ? `${token.substring(0, 10)}...` : 'none',
+          headers: config.headers
         });
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
@@ -80,9 +81,14 @@ class ApiService {
   }
 
   // Handle logout on authentication errors
-  private handleLogout() {
-    // Clear auth data and redirect to login
-    // This will be handled by the App component
+  private async handleLogout() {
+    try {
+      await SecureStore.deleteItemAsync('authToken');
+      // Navigate to login - this will be handled by the App component
+      // You can add navigation logic here if needed
+    } catch (error) {
+      console.log('Error clearing auth token:', error);
+    }
   }
 
   // Normalize API response to handle both success formats

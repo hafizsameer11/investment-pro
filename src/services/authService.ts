@@ -6,6 +6,7 @@ import { saveAuthData, clearAuthData, isAuthenticated } from '../utils/auth';
 export interface LoginRequest {
   email: string;
   password: string;
+  otp: string;
 }
 
 export interface RegisterRequest {
@@ -14,6 +15,7 @@ export interface RegisterRequest {
   phone: string;
   password: string;
   referral_code?: string;
+  otp: string;
 }
 
 export interface User {
@@ -135,9 +137,30 @@ export const authService = {
   // Get Profile
   async getProfile(): Promise<User> {
     try {
-      const response = await apiService.get<User>(API_CONFIG.ENDPOINTS.AUTH.PROFILE);
-      return response.data; // Backend returns user data
+      console.log('🔵 Getting user profile...');
+      const response = await apiService.get<any>(API_CONFIG.ENDPOINTS.AUTH.PROFILE);
+      console.log('🟢 Profile response:', response);
+      
+      // Handle the response structure: response.data contains {status, data, message}
+      console.log('🔵 Response structure check:', {
+        hasResponseData: !!response.data,
+        hasNestedData: !!(response.data && response.data.data),
+        responseDataType: typeof response.data,
+        nestedDataType: response.data && response.data.data ? typeof response.data.data : 'undefined'
+      });
+      
+      if (response.data && response.data.data) {
+        console.log('🟢 Using nested data structure');
+        return response.data.data;
+      } else if (response.data) {
+        console.log('🟢 Using direct data structure');
+        return response.data;
+      } else {
+        console.log('🔴 No valid data found');
+        throw new Error('Invalid response format');
+      }
     } catch (error) {
+      console.log('🔴 Profile error:', error);
       throw error;
     }
   },
@@ -145,10 +168,18 @@ export const authService = {
   // Update Profile
   async updateProfile(userData: Partial<User>): Promise<any> {
     try {
+      console.log('🔵 Updating profile:', userData);
       const response = await apiService.post(API_CONFIG.ENDPOINTS.AUTH.UPDATE, userData);
-      showSuccessToast('Profile updated successfully');
-      return response;
+      console.log('🟢 Profile update response:', response);
+      
+      if (response.success) {
+        showSuccessToast('Profile updated successfully');
+        return response.data;
+      } else {
+        throw new Error(response.message || 'Failed to update profile');
+      }
     } catch (error) {
+      console.log('🔴 Profile update error:', error);
       throw error;
     }
   },

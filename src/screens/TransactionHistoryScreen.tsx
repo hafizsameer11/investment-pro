@@ -176,7 +176,7 @@ export default function TransactionHistoryScreen() {
             onPress={() => setActiveTab('deposits')}
           >
             <Text style={[styles.tabButtonText, activeTab === 'deposits' && styles.activeTabButtonText]}>
-              Deposits ({deposits.length})
+              Deposits ({deposits?.length})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -184,7 +184,7 @@ export default function TransactionHistoryScreen() {
             onPress={() => setActiveTab('withdrawals')}
           >
             <Text style={[styles.tabButtonText, activeTab === 'withdrawals' && styles.activeTabButtonText]}>
-              Withdrawals ({withdrawals.length})
+              Withdrawals ({withdrawals?.length})
             </Text>
           </TouchableOpacity>
         </View>
@@ -193,16 +193,16 @@ export default function TransactionHistoryScreen() {
         <Card>
           {activeTab === 'deposits' ? (
             <>
-              {deposits.length > 0 ? (
-                deposits.map(transaction => renderTransactionItem(transaction, 'deposit'))
+              {deposits?.length > 0 ? (
+                deposits?.map(transaction => renderTransactionItem(transaction, 'deposit'))
               ) : (
                 renderEmptyState('deposits')
               )}
             </>
           ) : (
             <>
-              {withdrawals.length > 0 ? (
-                withdrawals.map(transaction => renderTransactionItem(transaction, 'withdrawal'))
+              {withdrawals?.length > 0 ? (
+                withdrawals?.map(transaction => renderTransactionItem(transaction, 'withdrawal'))
               ) : (
                 renderEmptyState('withdrawals')
               )}

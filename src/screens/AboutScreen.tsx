@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,18 +12,39 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Card, SectionTitle } from '../components/UI';
+import { dashboardService } from '../services/dashboardService';
 
 export default function AboutScreen() {
+  const [aboutData, setAboutData] = useState({
+    total_users: 480,
+    active_plans: '10k',
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadAboutData();
+  }, []);
+
+  const loadAboutData = async () => {
+    try {
+      setLoading(true);
+      const data = await dashboardService.getAbout();
+      console.log('🟢 About data loaded:', data);
+      if (data && typeof data === 'object') {
+        setAboutData(data);
+      }
+    } catch (error) {
+      console.log('🔴 About data error:', error);
+      // Keep default values if API fails
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleContact = (type: string) => {
     switch (type) {
       case 'email':
         Alert.alert('Email Support', 'Opening email client...');
-        break;
-      case 'phone':
-        Alert.alert('Phone Support', 'Opening phone dialer...');
-        break;
-      case 'chat':
-        Alert.alert('Live Chat', 'Opening live chat...');
         break;
       default:
         Alert.alert('Contact', `Contact via ${type}`);
@@ -61,13 +82,14 @@ export default function AboutScreen() {
               </Text>
               
               <View style={styles.statsContainer}>
+
                 <View style={styles.statItem}>
-                  <Text style={styles.statValue}>$500M+</Text>
-                  <Text style={styles.statLabel}>Assets Under Management</Text>
+                  <Text style={styles.statValue}>{aboutData?.total_users?.toLocaleString() || '500'}+</Text>
+                  <Text style={styles.statLabel}>Active Users</Text>
                 </View>
                 <View style={styles.statItem}>
-                  <Text style={styles.statValue}>50K+</Text>
-                  <Text style={styles.statLabel}>Active Investors</Text>
+                  <Text style={styles.statValue}>{aboutData?.active_plans || '0'}+</Text>
+                  <Text style={styles.statLabel}>Active Investments</Text>
                 </View>
               </View>
             </View>
@@ -262,35 +284,32 @@ export default function AboutScreen() {
               </View>
               <View style={styles.contactContent}>
                 <Text style={styles.contactTitle}>Email Support</Text>
-                <Text style={styles.contactValue}>support@investpro.com</Text>
+                <Text style={styles.contactValue}>info.investproteam@gmail.com</Text>
               </View>
             </TouchableOpacity>
+          </View>
+        </Card>
 
+        {/* Support Email */}
+        <Card>
+          <View style={styles.supportContainer}>
+            <View style={styles.supportHeader}>
+              <Ionicons name="help-circle" size={24} color="#0EA5E9" />
+              <Text style={styles.supportTitle}>Need Help?</Text>
+            </View>
+            <Text style={styles.supportText}>
+              For any questions, technical support, or account assistance, please contact us at:
+            </Text>
             <TouchableOpacity 
-              style={styles.contactItem}
-              onPress={() => handleContact('phone')}
+              style={styles.supportEmailContainer}
+              onPress={() => handleContact('email')}
             >
-              <View style={styles.contactIcon}>
-                <Ionicons name="call" size={24} color="#10B981" />
-              </View>
-              <View style={styles.contactContent}>
-                <Text style={styles.contactTitle}>Phone Support</Text>
-                <Text style={styles.contactValue}>1-800-INVEST (24/7)</Text>
-              </View>
+              <Text style={styles.supportEmail}>info.investproteam@gmail.com</Text>
+              <Ionicons name="mail-outline" size={20} color="#0EA5E9" />
             </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.contactItem}
-              onPress={() => handleContact('chat')}
-            >
-              <View style={styles.contactIcon}>
-                <Ionicons name="chatbubbles" size={24} color="#F59E0B" />
-              </View>
-              <View style={styles.contactContent}>
-                <Text style={styles.contactTitle}>Live Chat</Text>
-                <Text style={styles.contactValue}>Available 24/7</Text>
-              </View>
-            </TouchableOpacity>
+            <Text style={styles.supportNote}>
+              Our support team is available 24/7 to assist you with any inquiries.
+            </Text>
           </View>
         </Card>
       </ScrollView>
@@ -322,12 +341,12 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   missionContainer: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     marginBottom: 20,
   },
   missionImageContainer: {
-    width: 120,
-    height: 90,
+    width: 'auto',
+    height: 170,
     marginRight: 16,
   },
   missionImage: {
@@ -352,11 +371,17 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     marginTop: 16,
+    gap: 12,
   },
   statItem: {
     alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   statValue: {
     fontSize: 24,
@@ -498,5 +523,48 @@ const styles = StyleSheet.create({
   contactValue: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  supportContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  supportHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  supportTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginLeft: 8,
+  },
+  supportText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  supportEmailContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F9FF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  supportEmail: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#0EA5E9',
+    marginRight: 8,
+  },
+  supportNote: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

@@ -26,6 +26,22 @@ export interface Investment {
   updated_at: string;
 }
 
+export interface UserInvestment {
+  id: number;
+  plan_name: string;
+  amount: number;
+  start_date: string;
+  end_date: string;
+  status: string;
+  days_remaining: number;
+  progress_percentage: number;
+  total_profit: number;
+  daily_profit: number;
+  daily_profit_rate: number;
+  duration_days: number;
+  created_at: string;
+}
+
 export interface DepositRequest {
   amount: number;
   transaction_hash?: string;
@@ -49,11 +65,26 @@ export const investmentService = {
   // Get Investment Plans
   async getPlans(): Promise<InvestmentPlan[]> {
     try {
-      const response = await apiService.get<InvestmentPlan[]>(API_CONFIG.ENDPOINTS.INVESTMENT.PLANS);
-      return response.data;
+      console.log('🔵 Getting investment plans...');
+      const response = await apiService.get<any>(API_CONFIG.ENDPOINTS.INVESTMENT.PLANS);
+      console.log('🟢 Plans response:', response);
+      
+      if (response.data && response.data.status === 'success' && response.data.data && Array.isArray(response.data.data)) {
+        console.log('🟢 Plans data found:', response.data.data.length, 'plans');
+        return response.data.data;
+      } else if (response.data && Array.isArray(response.data)) {
+        console.log('🟢 Direct plans data found:', response.data.length, 'plans');
+        return response.data;
+      } else {
+        console.log('🔴 Invalid plans response structure:', response);
+        throw new Error('Invalid response structure from plans API');
+      }
     } catch (error) {
+      console.log('🔴 Plans error:', error);
+      
       // Return mock data for development when API is not available
       if (shouldUseMockData(error)) {
+        console.log('🟡 Using mock plans data');
         return DEV_CONFIG.MOCK_PLANS;
       }
       
@@ -72,10 +103,10 @@ export const investmentService = {
   },
 
   // Get User Investments
-  async getInvestments(): Promise<Investment[]> {
+  async getInvestments(): Promise<UserInvestment[]> {
     try {
-      const response = await apiService.get<Investment[]>(API_CONFIG.ENDPOINTS.INVESTMENT.USER_INVESTMENTS);
-      return response.data;
+      const response = await apiService.get<any>(API_CONFIG.ENDPOINTS.INVESTMENT.USER_INVESTMENTS);
+      return response.data.data;
     } catch (error) {
       throw error;
     }
@@ -160,8 +191,8 @@ export const investmentService = {
   // Get User Deposits
   async getUserDeposits(): Promise<any[]> {
     try {
-      const response = await apiService.get<any[]>(API_CONFIG.ENDPOINTS.DEPOSIT.USER_DEPOSITS);
-      return response.data;
+      const response = await apiService.get<any>(API_CONFIG.ENDPOINTS.DEPOSIT.USER_DEPOSITS);
+      return response.data.data;
     } catch (error) {
       throw error;
     }
@@ -170,8 +201,8 @@ export const investmentService = {
   // Get User Withdrawals
   async getUserWithdrawals(): Promise<any[]> {
     try {
-      const response = await apiService.get<any[]>(API_CONFIG.ENDPOINTS.WITHDRAWAL.USER_WITHDRAWALS);
-      return response.data;
+      const response = await apiService.get<any>(API_CONFIG.ENDPOINTS.WITHDRAWAL.USER_WITHDRAWALS);
+      return response.data.data;
     } catch (error) {
       throw error;
     }

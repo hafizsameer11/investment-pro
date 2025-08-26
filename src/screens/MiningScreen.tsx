@@ -14,6 +14,7 @@ import { Card, SectionTitle, Button } from '../components/UI';
 import { getAppData, updateAppData } from '../utils/appData';
 import { formatDuration } from '../utils/format';
 import { miningService } from '../services/miningService';
+import { newsService, NewsItem } from '../services/newsService';
 import Toast from 'react-native-toast-message';
 
 export default function MiningScreen() {
@@ -25,9 +26,12 @@ export default function MiningScreen() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [progress, setProgress] = useState(0);
   const progressAnim = useRef(new Animated.Value(0)).current;
+  const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
+  const [isLoadingNews, setIsLoadingNews] = useState(true);
 
   useEffect(() => {
     loadMiningData();
+    loadNews();
   }, []);
 
   const loadMiningData = async () => {
@@ -49,6 +53,18 @@ export default function MiningScreen() {
         position: 'top',
         visibilityTime: 4000,
       });
+    }
+  };
+
+  const loadNews = async () => {
+    try {
+      setIsLoadingNews(true);
+      const news = await newsService.getNews();
+      setNewsItems(news);
+    } catch (error) {
+      console.log('Failed to load news:', error);
+    } finally {
+      setIsLoadingNews(false);
     }
   };
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -476,6 +492,41 @@ export default function MiningScreen() {
             </Text>
           </View>
         </Card>
+
+        {/* Daily News & Updates */}
+        <Card>
+          <SectionTitle 
+            title="Daily News & Updates" 
+            subtitle="Latest updates and announcements from InvestPro."
+          />
+          
+          <View style={styles.newsContainer}>
+            {isLoadingNews ? (
+              <View style={styles.newsLoading}>
+                <Text style={styles.newsLoadingText}>Loading news...</Text>
+              </View>
+            ) : newsItems?.length > 0 ? (
+              newsItems?.map((item) => (
+                <View key={item.id} style={styles.newsItem}>
+                  <View style={styles.newsHeader}>
+                    <View style={styles.newsBadge}>
+                      <Text style={styles.newsBadgeText}>{item.type.toUpperCase()}</Text>
+                    </View>
+                    <Text style={styles.newsDate}>
+                      {new Date(item.created_at).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <Text style={styles.newsTitle}>{item.title}</Text>
+                  <Text style={styles.newsContent}>{item.content}</Text>
+                </View>
+              ))
+            ) : (
+              <View style={styles.newsEmpty}>
+                <Text style={styles.newsEmptyText}>No news available at the moment</Text>
+              </View>
+            )}
+          </View>
+        </Card>
       </ScrollView>
     </SafeAreaView>
   );
@@ -671,5 +722,64 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     lineHeight: 20,
     marginBottom: 8,
+  },
+  newsContainer: {
+    gap: 16,
+  },
+  newsItem: {
+    padding: 16,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#0EA5E9',
+  },
+  newsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  newsBadge: {
+    backgroundColor: '#0EA5E9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  newsBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'white',
+  },
+  newsDate: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  newsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  newsContent: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
+  },
+  newsLoading: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  newsLoadingText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  newsEmpty: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  newsEmptyText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontStyle: 'italic',
   },
 });

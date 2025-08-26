@@ -127,6 +127,7 @@ interface InputProps {
   placeholder?: string;
   value?: string;
   onChangeText?: (text: string) => void;
+  onBlur?: () => void;
   secureTextEntry?: boolean;
   multiline?: boolean;
   numberOfLines?: number;
@@ -135,6 +136,7 @@ interface InputProps {
   keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'numeric';
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   rightIcon?: React.ReactNode;
+  maxLength?: number;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -142,6 +144,7 @@ export const Input: React.FC<InputProps> = ({
   placeholder,
   value,
   onChangeText,
+  onBlur,
   secureTextEntry = false,
   multiline = false,
   numberOfLines = 1,
@@ -149,7 +152,8 @@ export const Input: React.FC<InputProps> = ({
   style,
   keyboardType = 'default',
   autoCapitalize = 'sentences',
-  rightIcon
+  rightIcon,
+  maxLength
 }) => {
   return (
     <View style={[styles.inputContainer, style]}>
@@ -160,12 +164,14 @@ export const Input: React.FC<InputProps> = ({
           placeholder={placeholder}
           value={value}
           onChangeText={onChangeText}
+          onBlur={onBlur}
           secureTextEntry={secureTextEntry}
           multiline={multiline}
           numberOfLines={numberOfLines}
           placeholderTextColor="#9CA3AF"
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
+          maxLength={maxLength}
         />
         {rightIcon && (
           <View style={styles.inputRightIcon}>

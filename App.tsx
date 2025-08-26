@@ -20,6 +20,9 @@ import MiningScreen from './src/screens/MiningScreen';
 import TransactionHistoryScreen from './src/screens/TransactionHistoryScreen';
 import MoreScreen from './src/screens/MoreScreen';
 import ActiveInvestmentsScreen from './src/screens/ActiveInvestmentsScreen';
+import UserProfileScreen from './src/screens/UserProfileScreen';
+import EditProfileScreen from './src/screens/EditProfileScreen';
+import KycUploadScreen from './src/screens/KycUploadScreen';
 
 // Import auth utilities
 import { isAuthenticated } from './src/utils/auth';
@@ -77,6 +80,21 @@ function MoreStack() {
         name="Withdraw" 
         component={WithdrawScreen} 
         options={{ title: 'Withdraw' }}
+      />
+      <Stack.Screen 
+        name="UserProfile" 
+        component={UserProfileScreen} 
+        options={{ title: 'User Profile' }}
+      />
+      <Stack.Screen 
+        name="EditProfile" 
+        component={EditProfileScreen} 
+        options={{ title: 'Edit Profile' }}
+      />
+      <Stack.Screen 
+        name="KycUpload" 
+        component={KycUploadScreen} 
+        options={{ title: 'KYC Verification' }}
       />
     </Stack.Navigator>
   );

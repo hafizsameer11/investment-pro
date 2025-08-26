@@ -12,24 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Card, SectionTitle } from '../components/UI';
 import { usd } from '../utils/format';
-import { investmentService } from '../services/investmentService';
+import { investmentService, UserInvestment } from '../services/investmentService';
 import Toast from 'react-native-toast-message';
-
-interface UserInvestment {
-  id: number;
-  plan_name: string;
-  amount: number;
-  start_date: string;
-  end_date: string;
-  status: string;
-  days_remaining: number;
-  progress_percentage: number;
-  total_profit: number;
-  daily_profit: number;
-  daily_profit_rate: number;
-  duration_days: number;
-  created_at: string;
-}
 
 export default function ActiveInvestmentsScreen() {
   const [investments, setInvestments] = useState<UserInvestment[]>([]);
@@ -124,18 +108,18 @@ export default function ActiveInvestmentsScreen() {
           <SectionTitle title="Investment Summary" subtitle="Overview of your active investments" />
           <View style={styles.summaryStats}>
             <View style={styles.summaryStat}>
-              <Text style={styles.summaryStatValue}>{investments.length}</Text>
+              <Text style={styles.summaryStatValue}>{investments?.length}</Text>
               <Text style={styles.summaryStatLabel}>Active Plans</Text>
             </View>
             <View style={styles.summaryStat}>
               <Text style={styles.summaryStatValue}>
-                {usd(investments.reduce((sum, inv) => sum + inv.amount, 0))}
+                {usd(investments?.reduce((sum, inv) => sum + inv.amount, 0))}
               </Text>
               <Text style={styles.summaryStatLabel}>Total Invested</Text>
             </View>
             <View style={styles.summaryStat}>
               <Text style={styles.summaryStatValue}>
-                {usd(investments.reduce((sum, inv) => sum + inv.total_profit, 0))}
+                {usd(investments?.reduce((sum, inv) => sum + inv.total_profit, 0))}
               </Text>
               <Text style={styles.summaryStatLabel}>Total Profit</Text>
             </View>
@@ -149,7 +133,7 @@ export default function ActiveInvestmentsScreen() {
               <Text style={styles.loadingText}>Loading investments...</Text>
             </View>
           </Card>
-        ) : investments.length === 0 ? (
+        ) : investments?.length === 0 ? (
           <Card style={styles.emptyCard}>
             <View style={styles.emptyContainer}>
               <Ionicons name="trending-up" size={48} color="#D1D5DB" />
@@ -160,7 +144,7 @@ export default function ActiveInvestmentsScreen() {
             </View>
           </Card>
         ) : (
-          investments.map((investment) => (
+          investments?.map((investment) => (
             <Card key={investment.id} style={styles.investmentCard}>
               <View style={styles.investmentHeader}>
                 <View style={styles.investmentInfo}>

@@ -13,10 +13,12 @@ import { z } from 'zod';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, Button, Input } from '../components/UI';
 import { authService } from '../services/authService';
+import { otpService } from '../services/otpService';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
+  otp: z.string().length(6, 'OTP must be 6 digits'),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -30,17 +32,44 @@ export default function LoginScreen({ navigation, route }: LoginScreenProps) {
   const { updateAuthState } = route.params || {};
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
 
   const {
     control,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
 
+  const handleSendOtp = async () => {
+    const email = getValues('email');
+    if (!email || !email.includes('@')) {
+      Alert.alert('Error', 'Please enter a valid email address first');
+      return;
+    }
+
+    setOtpLoading(true);
+    try {
+      await otpService.sendLoginOtp(email);
+      setOtpSent(true);
+      Alert.alert('OTP Sent', 'Verification code has been sent to your email');
+    } catch (error) {
+      // Error is already handled in otpService
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
   const onSubmit = async (data: LoginFormData) => {
-    console.log('🔵 Login Form Submit:', { email: data.email, password: '[HIDDEN]' });
+    if (!otpSent) {
+      Alert.alert('Error', 'Please send and verify OTP first');
+      return;
+    }
+
+    console.log('🔵 Login Form Submit:', { email: data.email, password: '[HIDDEN]', otp: '[HIDDEN]' });
     setIsLoading(true);
     try {
       const response = await authService.login(data);
@@ -119,6 +148,34 @@ export default function LoginScreen({ navigation, route }: LoginScreenProps) {
           )}
         />
 
+        <View style={styles.otpContainer}>
+          <Controller
+            control={control}
+            name="otp"
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label="Email Verification (OTP)"
+                placeholder="Enter 6-digit verification code"
+                value={value}
+                onChangeText={onChange}
+                error={errors.otp?.message}
+                keyboardType="numeric"
+                maxLength={6}
+                style={styles.otpInput}
+              />
+            )}
+          />
+          <TouchableOpacity 
+            style={[styles.sendOtpButton, otpSent && styles.sendOtpButtonDisabled]}
+            onPress={handleSendOtp}
+            disabled={otpLoading || otpSent}
+          >
+            <Text style={[styles.sendOtpText, otpSent && styles.sendOtpTextDisabled]}>
+              {otpLoading ? 'Sending...' : otpSent ? 'Sent' : 'Send Code'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity style={styles.forgotPassword}>
           <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
         </TouchableOpacity>
@@ -126,7 +183,7 @@ export default function LoginScreen({ navigation, route }: LoginScreenProps) {
         <Button
           title={isLoading ? 'Signing In...' : 'Sign In'}
           onPress={handleSubmit(onSubmit)}
-          disabled={isLoading}
+          disabled={isLoading || !otpSent}
           style={styles.loginButton}
         />
       </Card>
@@ -181,6 +238,34 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     marginTop: 8,
+  },
+  otpContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 12,
+    marginTop: 8,
+  },
+  otpInput: {
+    flex: 1,
+  },
+  sendOtpButton: {
+    backgroundColor: '#0EA5E9',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  sendOtpButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
+  sendOtpText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  sendOtpTextDisabled: {
+    color: '#E5E7EB',
   },
   footer: {
     flexDirection: 'row',

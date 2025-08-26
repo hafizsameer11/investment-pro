@@ -44,6 +44,7 @@ export default function DepositScreen() {
   const {
     control,
     handleSubmit,
+    setValue,
     formState: { errors },
     reset,
   } = useForm<DepositFormData>({
@@ -65,8 +66,9 @@ export default function DepositScreen() {
     try {
       setLoadingChains(true);
       const chainsData = await chainService.getChains();
+      console.log("🟢 Chains data: 456", chainsData);
       setChains(chainsData);
-      if (chainsData.length > 0) {
+      if (chainsData?.length > 0) {
         setSelectedChain(chainsData[0]); // Set first chain as default
       }
     } catch (error) {
@@ -189,7 +191,7 @@ export default function DepositScreen() {
     { value: 'growth', label: 'Growth Plan (15% Weekly)' },
     { value: 'premium', label: 'Premium Plan (30% Weekly)' },
   ];
-
+console.log("Chains",chains)
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -222,19 +224,35 @@ export default function DepositScreen() {
             )}
           />
 
-          <Controller
-            control={control}
-            name="crypto"
-            render={({ field: { onChange, value } }) => (
-              <Input
-                label="Select Cryptocurrency"
-                placeholder="USDT - Tether USD"
-                value={value}
-                onChangeText={onChange}
-                error={errors.crypto?.message}
-              />
-            )}
-          />
+          {/* Cryptocurrency Selection */}
+          <View style={styles.cryptoSelection}>
+            <Text style={styles.cryptoLabel}>Select Cryptocurrency:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cryptoScroll}>
+              {chains?.map((chain) => (
+                <TouchableOpacity
+                  key={chain.id}
+                  style={[
+                    styles.cryptoOption,
+                    selectedChain?.id === chain.id && styles.selectedCryptoOption
+                  ]}
+                  onPress={() => {
+                    handleChainSelect(chain);
+                    // Update form value
+                    const formValue = chain.type.split(' ')[0]; // Extract crypto name
+                    setValue('crypto', formValue);
+                  }}
+                >
+                  <Text style={[
+                    styles.cryptoOptionText,
+                    selectedChain?.id === chain.id && styles.selectedCryptoOptionText
+                  ]}>
+                    {chain.type}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            {errors.crypto && <Text style={styles.errorText}>{errors.crypto.message}</Text>}
+          </View>
 
           <Controller
             control={control}
@@ -320,7 +338,7 @@ export default function DepositScreen() {
               <View style={styles.chainSelection}>
                 <Text style={styles.chainLabel}>Select Cryptocurrency:</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chainScroll}>
-                  {chains.map((chain) => (
+                  {chains?.map((chain) => (
                     <TouchableOpacity
                       key={chain.id}
                       style={[
@@ -619,5 +637,43 @@ const styles = StyleSheet.create({
   },
   selectedChainOptionText: {
     color: '#FFFFFF',
+  },
+  cryptoSelection: {
+    marginBottom: 20,
+  },
+  cryptoLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  cryptoScroll: {
+    flexDirection: 'row',
+  },
+  cryptoOption: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  selectedCryptoOption: {
+    backgroundColor: '#0EA5E9',
+    borderColor: '#0EA5E9',
+  },
+  cryptoOptionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  selectedCryptoOptionText: {
+    color: '#FFFFFF',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 4,
   },
 });

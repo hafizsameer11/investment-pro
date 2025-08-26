@@ -13,6 +13,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card, SectionTitle, Button } from '../components/UI';
 import { getAppData } from '../utils/appData';
 import { usd } from '../utils/format';
+import { authService } from '../services/authService';
+import { referralService, ReferralStats, ReferralUser } from '../services/referralService';
+import Toast from 'react-native-toast-message';
 
 export default function ReferralsScreen() {
   const [appData, setAppData] = useState({
@@ -20,9 +23,15 @@ export default function ReferralsScreen() {
     directReferrals: 0,
     totalNetwork: 0,
   });
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [referralStats, setReferralStats] = useState<ReferralStats | null>(null);
+  const [myReferrals, setMyReferrals] = useState<ReferralUser[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadAppData();
+    loadUserProfile();
+    loadReferralData();
   }, []);
 
   const loadAppData = async () => {
@@ -30,12 +39,59 @@ export default function ReferralsScreen() {
     setAppData(data);
   };
 
+  const loadUserProfile = async () => {
+    try {
+      setLoading(true);
+      const userData = await authService.getProfile();
+      setUserProfile(userData);
+    } catch (error) {
+      console.log('🔴 Profile Error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Profile Error',
+        text2: 'Failed to load profile information',
+        position: 'top',
+        visibilityTime: 4000,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadReferralData = async () => {
+    try {
+      const [stats, referralsData] = await Promise.all([
+        referralService.getReferralStats(),
+        referralService.getMyReferrals()
+      ]);
+      
+      setReferralStats(stats);
+      setMyReferrals(referralsData.referrals);
+      
+      // Update app data with real referral data
+      setAppData({
+        networkEarnings: stats.total_earnings,
+        directReferrals: stats.level_1_referrals,
+        totalNetwork: stats.level_1_referrals + stats.level_2_referrals + stats.level_3_referrals + stats.level_4_referrals + stats.level_5_referrals,
+      });
+    } catch (error) {
+      console.log('🔴 Referral data error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Referral Error',
+        text2: 'Failed to load referral data',
+        position: 'top',
+        visibilityTime: 4000,
+      });
+    }
+  };
+
   const networkLevelsData = [
-    { level: 1, bonus: '10%', referrals: appData.directReferrals, earned: 0, color: '#3B82F6' },
-    { level: 2, bonus: '7%', referrals: 0, earned: 0, color: '#10B981' },
-    { level: 3, bonus: '5%', referrals: 0, earned: 0, color: '#8B5CF6' },
-    { level: 4, bonus: '3%', referrals: 0, earned: 0, color: '#F59E0B' },
-    { level: 5, bonus: '2%', referrals: 0, earned: 0, color: '#EC4899' },
+    { level: 1, bonus: '10%', referrals: referralStats?.level_1_referrals || 0, earned: 0, color: '#3B82F6' },
+    { level: 2, bonus: '7%', referrals: referralStats?.level_2_referrals || 0, earned: 0, color: '#10B981' },
+    { level: 3, bonus: '5%', referrals: referralStats?.level_3_referrals || 0, earned: 0, color: '#8B5CF6' },
+    { level: 4, bonus: '3%', referrals: referralStats?.level_4_referrals || 0, earned: 0, color: '#F59E0B' },
+    { level: 5, bonus: '2%', referrals: referralStats?.level_5_referrals || 0, earned: 0, color: '#EC4899' },
   ];
 
   const referralRewards = [
@@ -45,8 +101,12 @@ export default function ReferralsScreen() {
   ];
 
   const handleCopyReferralCode = () => {
-    // TODO: Implement copy to clipboard
-    Alert.alert('Copied!', 'Referral code copied to clipboard');
+    if (userProfile?.user_code) {
+      // TODO: Implement actual clipboard functionality
+      Alert.alert('Copied!', `Referral code "${userProfile.user_code}" copied to clipboard`);
+    } else {
+      Alert.alert('Error', 'Referral code not available');
+    }
   };
 
   const handleWhatsAppJoin = () => {
@@ -82,7 +142,7 @@ export default function ReferralsScreen() {
           />
           
           <View style={styles.networkGrid}>
-            {networkLevelsData.map((level) => (
+            {networkLevelsData?.map((level) => (
               <View key={level.level} style={[styles.networkLevel, { backgroundColor: level.color }]}>
                 <Text style={styles.levelNumber}>{level.referrals}</Text>
                 <Text style={styles.levelLabel}>Level {level.level}</Text>
@@ -107,7 +167,7 @@ export default function ReferralsScreen() {
           />
           
           <View style={styles.commissionStructure}>
-            {networkLevelsData.map((level) => (
+            {networkLevelsData?.map((level) => (
               <View key={level.level} style={styles.commissionRow}>
                 <Text style={styles.commissionLevel}>
                   Level {level.level} ({level.level === 1 ? 'Direct Referrals' : `${level.level}${level.level === 2 ? 'nd' : level.level === 3 ? 'rd' : 'th'} Generation`})
@@ -127,7 +187,7 @@ export default function ReferralsScreen() {
         </Card>
 
         {/* Support & Community */}
-        <Card>
+        {/* <Card>
           <SectionTitle 
             title="Support & Community" 
             subtitle="Get help and connect with other investors."
@@ -160,7 +220,7 @@ export default function ReferralsScreen() {
               <Text style={styles.supportLink}>info.investproteam@gmail.com</Text>
             </View>
           </TouchableOpacity>
-        </Card>
+        </Card> */}
 
         {/* Your Referral Code */}
         <Card>
@@ -171,7 +231,7 @@ export default function ReferralsScreen() {
           
           <View style={styles.referralCodeContainer}>
             <View style={styles.referralCodeBox}>
-              <Text style={styles.referralCode}>REF1418161A</Text>
+              <Text style={styles.referralCode}>{userProfile?.user_code || 'Loading...'}</Text>
               <TouchableOpacity style={styles.copyCodeIcon} onPress={handleCopyReferralCode}>
                 <Ionicons name="copy-outline" size={20} color="#0EA5E9" />
               </TouchableOpacity>
@@ -184,7 +244,7 @@ export default function ReferralsScreen() {
 
           <View style={styles.referralRewards}>
             <Text style={styles.referralRewardsTitle}>Referral Rewards:</Text>
-            {referralRewards.map((reward, index) => (
+            {referralRewards?.map((reward, index) => (
               <View key={index} style={styles.rewardItem}>
                 <Text style={styles.rewardPlan}>{reward.plan}:</Text>
                 <Text style={styles.rewardBonus}>{usd(reward.bonus)} bonus</Text>
@@ -242,7 +302,7 @@ export default function ReferralsScreen() {
             subtitle="People you've directly referred to the platform."
           />
           
-          {appData.directReferrals === 0 ? (
+          {myReferrals.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="people" size={48} color="#D1D5DB" />
               <Text style={styles.emptyStateText}>No direct referrals yet</Text>
@@ -252,8 +312,28 @@ export default function ReferralsScreen() {
             </View>
           ) : (
             <View style={styles.referralsList}>
-              {/* TODO: Add actual referrals list */}
-              <Text style={styles.comingSoon}>Referrals list coming soon...</Text>
+              {myReferrals?.map((referral, index) => (
+                <View key={referral.id} style={styles.referralItem}>
+                  <View style={styles.referralInfo}>
+                    <Text style={styles.referralName}>{referral.name}</Text>
+                    <Text style={styles.referralEmail}>{referral.email}</Text>
+                    <Text style={styles.referralDate}>
+                      Joined: {new Date(referral.created_at).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <View style={[
+                    styles.referralStatus,
+                    referral.status === 'active' ? styles.statusActive : styles.statusPending
+                  ]}>
+                    <Text style={[
+                      styles.referralStatusText,
+                      referral.status === 'active' ? styles.statusActiveText : styles.statusPendingText
+                    ]}>
+                      {referral.status === 'active' ? 'Active' : 'Pending'}
+                    </Text>
+                  </View>
+                </View>
+              ))}
             </View>
           )}
         </Card>
@@ -585,5 +665,61 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
+  },
+  referralItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 12,
+  },
+  referralInfo: {
+    flex: 1,
+  },
+  referralName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  referralEmail: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  referralDate: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  referralStatus: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  statusActive: {
+    backgroundColor: '#D1FAE5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  statusPending: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  referralStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  statusActiveText: {
+    color: '#065F46',
+  },
+  statusPendingText: {
+    color: '#92400E',
   },
 });

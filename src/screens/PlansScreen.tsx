@@ -46,62 +46,62 @@ interface ApiPlan {
   updated_at: string;
 }
 
-const plans: Plan[] = [
-  {
-    id: 'starter',
-    name: 'Starter Plan',
-    tagline: 'Perfect for beginners',
-    returnRate: '15.00%',
-    minAmount: 500,
-    maxAmount: 1000,
-    referralBonus: 50,
-    features: [
-      '30-day investment period',
-      'Daily profit distribution',
-      '24/7 customer support',
-      'Capital protection',
-    ],
-    icon: 'leaf',
-    color: '#10B981',
-  },
-  {
-    id: 'growth',
-    name: 'Growth Plan',
-    tagline: 'High-growth potential',
-    returnRate: '15.00%',
-    minAmount: 1000,
-    maxAmount: 5000,
-    referralBonus: 100,
-    features: [
-      '45-day investment period',
-      'Premium profit rates',
-      'Priority customer support',
-      'Advanced portfolio insights',
-      'Dedicated account manager',
-    ],
-    icon: 'rocket',
-    color: '#3B82F6',
-  },
-  {
-    id: 'premium',
-    name: 'Premium Plan',
-    tagline: 'Maximum returns',
-    returnRate: '30.00%',
-    minAmount: 5000,
-    maxAmount: 0, // No maximum
-    referralBonus: 300,
-    features: [
-      '60-day investment period',
-      'Highest profit margins',
-      'VIP customer support',
-      'Custom investment strategies',
-      'Exclusive market insights',
-      'White-glove service',
-    ],
-    icon: 'diamond',
-    color: '#8B5CF6',
-  },
-];
+// const plans: Plan[] = [
+//   {
+//     id: 'starter',
+//     name: 'Starter Plan',
+//     tagline: 'Perfect for beginners',
+//     returnRate: '15.00%',
+//     minAmount: 500,
+//     maxAmount: 1000,
+//     referralBonus: 50,
+//     features: [
+//       '30-day investment period',
+//       'Daily profit distribution',
+//       '24/7 customer support',
+//       'Capital protection',
+//     ],
+//     icon: 'leaf',
+//     color: '#10B981',
+//   },
+//   {
+//     id: 'growth',
+//     name: 'Growth Plan',
+//     tagline: 'High-growth potential',
+//     returnRate: '15.00%',
+//     minAmount: 1000,
+//     maxAmount: 5000,
+//     referralBonus: 100,
+//     features: [
+//       '45-day investment period',
+//       'Premium profit rates',
+//       'Priority customer support',
+//       'Advanced portfolio insights',
+//       'Dedicated account manager',
+//     ],
+//     icon: 'rocket',
+//     color: '#3B82F6',
+//   },
+//   {
+//     id: 'premium',
+//     name: 'Premium Plan',
+//     tagline: 'Maximum returns',
+//     returnRate: '30.00%',
+//     minAmount: 5000,
+//     maxAmount: 0, // No maximum
+//     referralBonus: 300,
+//     features: [
+//       '60-day investment period',
+//       'Highest profit margins',
+//       'VIP customer support',
+//       'Custom investment strategies',
+//       'Exclusive market insights',
+//       'White-glove service',
+//     ],
+//     icon: 'diamond',
+//     color: '#8B5CF6',
+//   },
+// ];
 
 export default function PlansScreen() {
   const [apiPlans, setApiPlans] = useState<ApiPlan[]>([]);
@@ -120,8 +120,22 @@ export default function PlansScreen() {
       if (!refreshing) {
         setLoading(true);
       }
-      const plans = await investmentService.getPlans();
-      setApiPlans(plans);
+      console.log('🔵 Loading plans...');
+      const response = await investmentService.getPlans();
+      console.log('🟢 Plans response:', response);
+      
+      // Handle different API response structures
+      const plans = Array.isArray(response?.data) ? response.data
+                  : Array.isArray(response) ? response
+                  : [];
+      
+      if (plans && Array.isArray(plans)) {
+        setApiPlans(plans);
+        console.log('🟢 Plans set to state:', plans.length, 'plans');
+      } else {
+        console.log('🔴 Invalid plans data:', plans);
+        setApiPlans([]);
+      }
       
       // Show success message on refresh
       if (refreshing) {
@@ -134,6 +148,7 @@ export default function PlansScreen() {
         });
       }
     } catch (error) {
+      console.log('🔴 Load plans error:', error);
       // Show detailed error message
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       Toast.show({
@@ -143,6 +158,8 @@ export default function PlansScreen() {
         position: 'top',
         visibilityTime: 4000,
       });
+      // Set empty array to prevent undefined errors
+      setApiPlans([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -151,8 +168,11 @@ export default function PlansScreen() {
 
   // Map API plans to UI plans
   const getDisplayPlans = (): Plan[] => {
-    if (apiPlans.length > 0) {
-      return apiPlans.map((apiPlan, index) => ({
+    console.log('🔵 Getting display plans, apiPlans:', apiPlans);
+    
+    if (apiPlans && Array.isArray(apiPlans) && apiPlans.length > 0) {
+      console.log('🟢 Using API plans:', apiPlans.length, 'plans');
+      const plans3= apiPlans?.map((apiPlan, index) => ({
         id: apiPlan.id.toString(),
         name: apiPlan.plan_name,
         tagline: `${apiPlan.profit_percentage}% daily profit`,
@@ -169,8 +189,9 @@ export default function PlansScreen() {
         icon: ['leaf', 'rocket', 'diamond'][index] || 'leaf',
         color: ['#10B981', '#3B82F6', '#8B5CF6'][index] || '#10B981',
       }));
+      console.log('🟢 Plans3:', plans3);
+      return plans3;
     }
-    return plans; // Fallback to local plans
   };
 
   const handleInvestmentSubmit = async () => {
@@ -308,7 +329,7 @@ export default function PlansScreen() {
               <Text style={styles.loadingText}>Loading plans...</Text>
             </View>
           ) : (
-            getDisplayPlans().map((plan) => (
+            getDisplayPlans()?.map((plan) => (
             <Card key={plan.id} style={styles.planCard}>
               <View style={styles.planHeader}>
                 <View style={[styles.planIcon, { backgroundColor: plan.color }]}>
@@ -334,7 +355,7 @@ export default function PlansScreen() {
               </View>
 
               <View style={styles.featuresContainer}>
-                {plan.features.map((feature, index) => (
+                {plan.features?.map((feature, index) => (
                   <View key={index} style={styles.featureRow}>
                     <Ionicons name="checkmark-circle" size={16} color="#10B981" />
                     <Text style={styles.featureText}>{feature}</Text>

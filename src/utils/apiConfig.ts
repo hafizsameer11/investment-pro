@@ -1,7 +1,7 @@
 // API Configuration
 export const API_CONFIG = {
   // Production API URL
-  BASE_URL: 'https://investpro.hmstech.xyz/api',
+  BASE_URL: 'https://investpro.hmstech.xyz/api/',
   API_VERSION: '',
   TIMEOUT: 10000,
   RETRY_ATTEMPTS: 3,
@@ -21,6 +21,21 @@ export const API_CONFIG = {
       PROFILE: '/profile',
       UPDATE: '/update',
       KYC: '/kyc',
+    },
+    OTP: {
+      SEND_SIGNUP: '/otp/send-signup',
+      SEND_LOGIN: '/otp/send-login',
+      VERIFY: '/otp/verify',
+      SEND_WITHDRAWAL: '/withdrawal/otp',
+    },
+    NEWS: {
+      ALL: '/news',
+      BY_TYPE: '/news',
+    },
+    KYC: {
+      UPLOAD: '/kyc/upload',
+      DOCUMENTS: '/kyc/documents',
+      DOWNLOAD: '/kyc/download',
     },
     DASHBOARD: {
       DASHBOARD: '/dashboard',
@@ -64,6 +79,11 @@ export const API_CONFIG = {
       STATUS: '/mining/status',
       STOP: '/mining/stop',
       CLAIM_REWARDS: '/mining/claim-rewards',
+    },
+    REFERRAL: {
+      MY_REFERRALS: '/referrals/my-referrals',
+      NETWORK: '/referrals/network',
+      STATS: '/referrals/stats',
     },
   },
 };
