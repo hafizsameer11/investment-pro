@@ -21,6 +21,9 @@ export const API_CONFIG = {
       PROFILE: '/profile',
       UPDATE: '/update',
       KYC: '/kyc',
+      SEND_RESET_OTP: '/password/send-reset-otp',
+      VERIFY_RESET_OTP: '/password/verify-reset-otp',
+      RESET_PASSWORD: '/password/reset',
     },
     OTP: {
       SEND_SIGNUP: '/otp/send-signup',

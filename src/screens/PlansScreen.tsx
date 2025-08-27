@@ -185,6 +185,7 @@ export default function PlansScreen() {
           'Daily profit distribution',
           '24/7 customer support',
           'Capital protection',
+          'Earn Direct and indirect Referral Bonus',
         ],
         icon: ['leaf', 'rocket', 'diamond'][index] || 'leaf',
         color: ['#10B981', '#3B82F6', '#8B5CF6'][index] || '#10B981',
@@ -307,7 +308,7 @@ export default function PlansScreen() {
         </View>
 
         {/* Filter Buttons */}
-        <View style={styles.filterContainer}>
+        {/* <View style={styles.filterContainer}>
           <TouchableOpacity style={[styles.filterButton, styles.filterButtonActive]}>
             <Text style={styles.filterButtonTextActive}>All Plans</Text>
           </TouchableOpacity>
@@ -320,7 +321,7 @@ export default function PlansScreen() {
           <TouchableOpacity style={styles.filterButton}>
             <Text style={styles.filterButtonText}>Enterprise</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
 
         {/* Plans */}
         <View style={styles.plansContainer}>
@@ -363,10 +364,10 @@ export default function PlansScreen() {
                 ))}
               </View>
 
-              <View style={styles.referralBonus}>
+              {/* <View style={styles.referralBonus}>
                 <Text style={styles.referralBonusLabel}>Referral Bonus:</Text>
                 <Text style={styles.referralBonusValue}>{usd(plan.referralBonus)}</Text>
-              </View>
+              </View> */}
 
               <Button
                 title="Invest Now"

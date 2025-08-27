@@ -183,4 +183,32 @@ export const authService = {
       throw error;
     }
   },
+
+  // Password Reset Methods
+  async sendPasswordResetOtp(email: string): Promise<any> {
+    try {
+      const response = await apiService.post(API_CONFIG.ENDPOINTS.AUTH.SEND_RESET_OTP, { email });
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  async verifyPasswordResetOtp(email: string, otp: string): Promise<any> {
+    try {
+      const response = await apiService.post(API_CONFIG.ENDPOINTS.AUTH.VERIFY_RESET_OTP, { email, otp });
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  async resetPassword(data: { email: string; otp: string; password: string; password_confirmation: string }): Promise<any> {
+    try {
+      const response = await apiService.post(API_CONFIG.ENDPOINTS.AUTH.RESET_PASSWORD, data);
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  },
 };

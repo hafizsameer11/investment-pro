@@ -333,7 +333,7 @@ export default function ReferralsScreen() {
         </Card>
 
         {/* Network Tree */}
-        <Card>
+        {/* <Card>
           <View style={styles.networkTreeHeader}>
             <Text style={styles.networkTreeTitle}>Network Tree</Text>
             <TouchableOpacity style={styles.showTreeButton} onPress={handleShowTree}>
@@ -346,7 +346,7 @@ export default function ReferralsScreen() {
               Visual representation of your complete referral network structure.
             </Text>
           </View>
-        </Card>
+        </Card> */}
       </ScrollView>
     </SafeAreaView>
   );

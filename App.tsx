@@ -23,6 +23,7 @@ import ActiveInvestmentsScreen from './src/screens/ActiveInvestmentsScreen';
 import UserProfileScreen from './src/screens/UserProfileScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
 import KycUploadScreen from './src/screens/KycUploadScreen';
+import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 
 // Import auth utilities
 import { isAuthenticated } from './src/utils/auth';
@@ -231,6 +232,10 @@ export default function App() {
                 name="Signup" 
                 component={SignupScreen}
                 initialParams={{ updateAuthState }}
+              />
+              <Stack.Screen 
+                name="ForgotPassword" 
+                component={ForgotPasswordScreen}
               />
             </>
           )}

@@ -46,8 +46,10 @@ class ApiService {
           method: config.method,
           hasToken: !!token,
           tokenPreview: token ? `${token.substring(0, 10)}...` : 'none',
-          headers: config.headers
+          headers: config.headers,
+          
         });
+        console.log("token ion kyc service", token);
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
