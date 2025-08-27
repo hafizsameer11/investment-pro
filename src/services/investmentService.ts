@@ -59,6 +59,17 @@ export interface WithdrawalRequest {
   otp?: string;
   notes?: string;
 }
+function extractPayload(resp: any) {
+  // Handle cases where apiService already returns payload
+  // and cases where it's an axios-like { data: ... } wrapper
+  const root = resp?.data ?? resp;
+  return root?.data ?? root;
+}
+
+function toNumber(v: any, def = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : def;
+}
 
 // Investment Service
 export const investmentService = {
@@ -106,7 +117,7 @@ export const investmentService = {
   async getInvestments(): Promise<UserInvestment[]> {
     try {
       const response = await apiService.get<any>(API_CONFIG.ENDPOINTS.INVESTMENT.USER_INVESTMENTS);
-      return response.data.data;
+      return response.data;
     } catch (error) {
       throw error;
     }
@@ -187,22 +198,41 @@ export const investmentService = {
       throw error;
     }
   },
+  
 
   // Get User Deposits
   async getUserDeposits(): Promise<any[]> {
     try {
-      const response = await apiService.get<any>(API_CONFIG.ENDPOINTS.DEPOSIT.USER_DEPOSITS);
-      return response.data.data;
+      const resp = await apiService.get<any>(API_CONFIG.ENDPOINTS.DEPOSIT.USER_DEPOSITS);
+      const payload = extractPayload(resp);
+      const rows: any[] = Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : [];
+
+      // Normalize number/string amounts and relation naming
+      return rows.map((t) => ({
+        ...t,
+        amount: toNumber(t?.amount, 0),
+        status: String(t?.status ?? ''),
+        investment_plan: t?.investment_plan ?? t?.investmentPlan ?? null,
+        created_at: String(t?.created_at ?? ''),
+        updated_at: String(t?.updated_at ?? ''),
+      }));
     } catch (error) {
       throw error;
     }
   },
 
-  // Get User Withdrawals
   async getUserWithdrawals(): Promise<any[]> {
     try {
-      const response = await apiService.get<any>(API_CONFIG.ENDPOINTS.WITHDRAWAL.USER_WITHDRAWALS);
-      return response.data.data;
+      const resp = await apiService.get<any>(API_CONFIG.ENDPOINTS.WITHDRAWAL.USER_WITHDRAWALS);
+      const payload = extractPayload(resp);
+      const rows: any[] = Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : [];
+      return rows.map((t) => ({
+        ...t,
+        amount: toNumber(t?.amount, 0),
+        status: String(t?.status ?? ''),
+        created_at: String(t?.created_at ?? ''),
+        updated_at: String(t?.updated_at ?? ''),
+      }));
     } catch (error) {
       throw error;
     }

@@ -37,6 +37,7 @@ export default function MiningScreen() {
   const loadMiningData = async () => {
     try {
       const status = await miningService.getMiningStatus();
+      console.log('Mining Status:', status);
       setMiningSession({
         startAt: status.started_at ? new Date(status.started_at).getTime() : null,
         phase: status.status === 'active' ? 'running' : (status.status === 'stopped' ? 'idle' : status.status),

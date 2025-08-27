@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,26 +19,37 @@ import { usd } from '../utils/format';
 import { investmentService } from '../services/investmentService';
 import { dashboardService } from '../services/dashboardService';
 import { otpService } from '../services/otpService';
+import loyaltyService, { LoyaltyProgress } from '../services/loyaltyService';
 import Toast from 'react-native-toast-message';
 
+// ───────────────────────────────────────────────────────────
+// Validation
+// ───────────────────────────────────────────────────────────
 const withdrawSchema = z.object({
-  amount: z.string().refine((val) => {
-    const num = parseFloat(val);
-    return !isNaN(num) && num >= 50;
-  }, 'Minimum withdrawal amount is $50'),
+  amount: z
+    .string()
+    .refine((val) => {
+      const num = parseFloat(val);
+      return !isNaN(num) && num >= 50;
+    }, 'Minimum withdrawal amount is $50'),
   crypto: z.string().min(1, 'Please select a cryptocurrency'),
-  walletAddress: z.string().min(1, 'Wallet address is required'),
+  walletAddress: z.string().min(10, 'Wallet address is required'),
   password: z.string().min(1, 'Account password is required'),
+  // Backend requires OTP always (size:6)
   otp: z.string().length(6, 'OTP must be 6 digits'),
   notes: z.string().optional(),
 });
-
 type WithdrawFormData = z.infer<typeof withdrawSchema>;
 
 export default function WithdrawScreen() {
   const [totalBalance, setTotalBalance] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [otpSent, setOtpSent] = useState(false); // UX only, no longer gates submission
+  const [loyaltyData, setLoyaltyData] = useState<LoyaltyProgress | null>(null);
+
+  // Always show OTP since backend requires it
+  const showOtpField = true;
 
   useEffect(() => {
     loadAppData();
@@ -47,27 +57,29 @@ export default function WithdrawScreen() {
 
   const loadAppData = async () => {
     try {
-      if (!refreshing) { setRefreshing(true); }
-      
-      // Load latest balance from API
-      console.log('🔵 Loading balance from dashboard API...');
-      const dashboardResponse = await dashboardService.getDashboard();
-      console.log('🟢 Dashboard response:', dashboardResponse);
-      
-      if (dashboardResponse.success && dashboardResponse.data) {
-        console.log('🟢 Dashboard data:', dashboardResponse.data);
-        console.log('🟢 Total balance:', dashboardResponse.data.total_balance);
-        setTotalBalance(dashboardResponse.data.total_balance);
-        console.log('🟢 Balance set to state:', dashboardResponse.data.total_balance);
+      if (!refreshing) setRefreshing(true);
+
+      // Load balance and loyalty data in parallel
+      const [dashboardResponse, loyalty] = await Promise.all([
+        dashboardService.getDashboard(),
+        loyaltyService.getUserLoyalty().catch(err => {
+          console.log('🔴 Loyalty error:', err);
+          return null;
+        }),
+      ]);
+
+      if (dashboardResponse?.success && dashboardResponse?.data) {
+        setTotalBalance(Number(dashboardResponse.data.total_balance ?? 0));
       } else {
-        console.log('🔴 Dashboard response not successful:', dashboardResponse);
-        // Fallback to local data
-        const data = await getAppData();
-        console.log('🟡 Using local data:', data.totalBalance);
-        setTotalBalance(data.totalBalance);
+        const local = await getAppData();
+        setTotalBalance(Number(local.totalBalance ?? 0));
       }
-      
-      // Show success message on refresh
+
+      // Set loyalty data
+      if (loyalty) {
+        setLoyaltyData(loyalty);
+      }
+
       if (refreshing) {
         Toast.show({
           type: 'success',
@@ -78,18 +90,16 @@ export default function WithdrawScreen() {
         });
       }
     } catch (error) {
-      console.log('🔴 Error loading balance:', error);
-      // Fallback to local data
-      const data = await getAppData();
-      console.log('🟡 Using local data on error:', data.totalBalance);
-      setTotalBalance(data.totalBalance);
+      const local = await getAppData();
+      setTotalBalance(Number(local.totalBalance ?? 0));
     } finally {
       setRefreshing(false);
     }
   };
-  const [otpSent, setOtpSent] = useState(false);
-  const [showOtpField, setShowOtpField] = useState(process.env.EXPO_PUBLIC_ENABLE_WITHDRAW_OTP === 'true');
 
+  // ───────────────────────────────────────────────────────────
+  // Form
+  // ───────────────────────────────────────────────────────────
   const {
     control,
     handleSubmit,
@@ -106,27 +116,25 @@ export default function WithdrawScreen() {
       otp: '',
       notes: '',
     },
+    mode: 'onChange',
   });
 
-  const watchedAmount = watch('amount');
-  const amount = parseFloat(watchedAmount) || 0;
-  const isAmountValid = amount >= 50 && amount <= totalBalance;
+  const watched = watch();
+  const amountNum = useMemo(() => parseFloat(watched.amount || '0') || 0, [watched.amount]);
+  const isAmountValid = amountNum >= 50 && amountNum <= totalBalance;
+
+  // Optional: lightweight form ready state (you can also rely solely on handleSubmit validation)
+  const isFormReady =
+    isAmountValid &&
+    !!watched.crypto &&
+    !!watched.walletAddress &&
+    !!watched.password &&
+    watched.otp?.length === 6;
 
   const onSubmit = async (data: WithdrawFormData) => {
-    if (!otpSent) {
-      Toast.show({
-        type: 'error',
-        text1: 'OTP Required',
-        text2: 'Please send OTP first before submitting withdrawal',
-        position: 'top',
-        visibilityTime: 4000,
-      });
-      return;
-    }
-
     setIsSubmitting(true);
     try {
-      const withdrawalData = {
+      const payload = {
         amount: parseFloat(data.amount),
         wallet_address: data.walletAddress,
         crypto_type: data.crypto,
@@ -134,8 +142,8 @@ export default function WithdrawScreen() {
         otp: data.otp,
         notes: data.notes,
       };
-      
-      await investmentService.createWithdrawal(withdrawalData);
+
+      await investmentService.createWithdrawal(payload);
       Toast.show({
         type: 'success',
         text1: 'Success',
@@ -143,14 +151,15 @@ export default function WithdrawScreen() {
         position: 'top',
         visibilityTime: 4000,
       });
+
       reset();
       setOtpSent(false);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const msg = error instanceof Error ? error.message : 'Unknown error occurred';
       Toast.show({
         type: 'error',
         text1: 'Withdrawal Error',
-        text2: `Failed to submit withdrawal request: ${errorMessage}`,
+        text2: msg,
         position: 'top',
         visibilityTime: 4000,
       });
@@ -171,11 +180,11 @@ export default function WithdrawScreen() {
         visibilityTime: 4000,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const msg = error instanceof Error ? error.message : 'Unknown error occurred';
       Toast.show({
         type: 'error',
         text1: 'OTP Error',
-        text2: `Failed to send OTP: ${errorMessage}`,
+        text2: msg,
         position: 'top',
         visibilityTime: 4000,
       });
@@ -200,8 +209,8 @@ export default function WithdrawScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
-        style={styles.scrollView} 
+      <ScrollView
+        style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -222,17 +231,11 @@ export default function WithdrawScreen() {
 
         {/* Account Balance */}
         <Card>
-          <SectionTitle 
-            title="Account Balance" 
-            subtitle="Your available funds for withdrawal."
-          />
-          
+          <SectionTitle title="Account Balance" subtitle="Your available funds for withdrawal." />
           <View style={styles.balanceContainer}>
             <Text style={styles.balanceAmount}>{usd(totalBalance)}</Text>
             <Text style={styles.balanceLabel}>Available for withdrawal</Text>
           </View>
-          
-
 
           <View style={styles.limitsContainer}>
             <View style={styles.limitItem}>
@@ -252,18 +255,77 @@ export default function WithdrawScreen() {
           <View style={styles.infoBanner}>
             <Ionicons name="information-circle" size={20} color="#3B82F6" />
             <Text style={styles.infoText}>
-              Crypto withdrawals are processed faster than traditional methods. Most transactions complete within 2-6 hours.
+              Crypto withdrawals are processed faster than traditional methods. Most transactions
+              complete within 2-6 hours.
             </Text>
           </View>
         </Card>
 
+        {/* Loyalty Boost Section */}
+        {loyaltyData && (
+          <Card>
+            <SectionTitle 
+              title="Loyalty Boost" 
+              subtitle="Your loyalty rewards and next tier progress." 
+            />
+            
+            <View style={styles.loyaltyContainer}>
+              {loyaltyData.current_tier ? (
+                <View style={styles.currentTier}>
+                  <Text style={styles.currentTierTitle}>
+                    Current Tier: {loyaltyData.current_tier.name}
+                  </Text>
+                  <Text style={styles.currentTierBonus}>
+                    You'll get {loyaltyData.current_tier.bonus_percentage}% bonus on this withdrawal!
+                  </Text>
+                  <Text style={styles.loyaltyBonusEarned}>
+                    Total bonus earned: ${loyaltyData.loyalty_bonus_earned.toFixed(2)}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.noTier}>
+                  <Text style={styles.noTierText}>
+                    Start investing to unlock loyalty tiers and earn bonus rewards!
+                  </Text>
+                </View>
+              )}
+
+              {loyaltyData.next_tier && (
+                <View style={styles.nextTier}>
+                  <Text style={styles.nextTierTitle}>
+                    Next Tier: {loyaltyData.next_tier.name}
+                  </Text>
+                  <Text style={styles.nextTierDays}>
+                    You're just {loyaltyData.days_remaining} days away from an extra {loyaltyData.next_tier.bonus_percentage}% bonus!
+                  </Text>
+                  <Text style={styles.nextTierDescription}>
+                    Keep holding to maximize your profit
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.loyaltyProgress}>
+                <Text style={styles.loyaltyProgressText}>
+                  {loyaltyData.current_days} days invested without withdrawal
+                </Text>
+                <View style={styles.loyaltyProgressBar}>
+                  <View 
+                    style={[
+                      styles.loyaltyProgressFill, 
+                      { width: `${loyaltyData.progress_percentage}%` }
+                    ]} 
+                  />
+                </View>
+              </View>
+            </View>
+          </Card>
+        )}
+
         {/* Withdrawal Request */}
         <Card>
-          <SectionTitle 
-            title="Withdrawal Request" 
-            subtitle="Complete the form below to submit your withdrawal request."
-          />
+          <SectionTitle title="Withdrawal Request" subtitle="Complete the form below." />
 
+          {/* Amount */}
           <Controller
             control={control}
             name="amount"
@@ -274,16 +336,15 @@ export default function WithdrawScreen() {
                 value={value}
                 onChangeText={onChange}
                 error={errors.amount?.message}
+                keyboardType="decimal-pad"
               />
             )}
           />
-
           <View style={styles.amountLimits}>
-            <Text style={styles.amountLimitText}>
-              Min: $50, Max: {usd(totalBalance)}
-            </Text>
+            <Text style={styles.amountLimitText}>Min: $50, Max: {usd(totalBalance)}</Text>
           </View>
 
+          {/* Crypto */}
           <Controller
             control={control}
             name="crypto"
@@ -297,25 +358,25 @@ export default function WithdrawScreen() {
               />
             )}
           />
-
           <View style={styles.networkInfo}>
             <Text style={styles.networkText}>Network: TRC20 (Tron) or ERC20 (Ethereum)</Text>
           </View>
 
+          {/* Wallet Address */}
           <Controller
             control={control}
             name="walletAddress"
-            render={({ field: { onChange, value } }) => (
+            render={({ field: { onChange, value} }) => (
               <Input
                 label="Your USDT Wallet Address"
                 placeholder="Enter your USDT wallet address"
                 value={value}
                 onChangeText={onChange}
                 error={errors.walletAddress?.message}
+                autoCapitalize="none"
               />
             )}
           />
-
           <View style={styles.warningBanner}>
             <Ionicons name="warning" size={20} color="#92400E" />
             <Text style={styles.warningText}>
@@ -323,6 +384,7 @@ export default function WithdrawScreen() {
             </Text>
           </View>
 
+          {/* Password */}
           <Controller
             control={control}
             name="password"
@@ -338,34 +400,37 @@ export default function WithdrawScreen() {
             )}
           />
 
-          <View style={styles.otpContainer}>
-            {showOtpField && (
+          {/* OTP */}
+          {showOtpField && (
+            <View style={styles.otpContainer}>
               <Controller
                 control={control}
                 name="otp"
                 render={({ field: { onChange, value } }) => (
                   <Input
-                    label="Email Verification (OTP) - Optional"
-                    placeholder="Enter verification code"
+                    label="Email Verification (OTP)"
+                    placeholder="6-digit code"
                     value={value}
-                    onChangeText={onChange}
+                    onChangeText={(txt) => onChange(txt.replace(/[^0-9]/g, '').slice(0, 6))}
                     error={errors.otp?.message}
+                    keyboardType="number-pad"
                     style={styles.otpInput}
                   />
                 )}
               />
-            )}
-            <TouchableOpacity 
-              style={[styles.sendOtpButton, otpSent && styles.sendOtpButtonDisabled]}
-              onPress={handleSendOTP}
-              disabled={otpSent}
-            >
-              <Text style={[styles.sendOtpText, otpSent && styles.sendOtpTextDisabled]}>
-                {otpSent ? 'Sent' : 'Send Code'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                style={[styles.sendOtpButton, otpSent && styles.sendOtpButtonDisabled]}
+                onPress={handleSendOTP}
+                disabled={otpSent}
+              >
+                <Text style={[styles.sendOtpText, otpSent && styles.sendOtpTextDisabled]}>
+                  {otpSent ? 'Sent' : 'Send Code'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
+          {/* Notes */}
           <Controller
             control={control}
             name="notes"
@@ -382,58 +447,59 @@ export default function WithdrawScreen() {
             )}
           />
 
+          {/* Security notices */}
           <View style={styles.securityNotices}>
             <View style={styles.securityHeader}>
               <Ionicons name="warning" size={20} color="#DC2626" />
               <Text style={styles.securityTitle}>Important Security Notices</Text>
             </View>
             <View style={styles.securityList}>
-              <Text style={styles.securityItem}>• Verify your wallet address carefully - transactions cannot be reversed</Text>
-              <Text style={styles.securityItem}>• Only withdraw to wallets you control completely</Text>
-              <Text style={styles.securityItem}>• Processing usually takes 2-6 hours but may take up to 24 hours during high volume</Text>
-              <Text style={styles.securityItem}>• You'll receive email confirmations at each step of the process</Text>
+              <Text style={styles.securityItem}>• Verify your wallet address carefully</Text>
+              <Text style={styles.securityItem}>• Only withdraw to wallets you control</Text>
+              <Text style={styles.securityItem}>• Processing usually takes 2-6 hours</Text>
+              <Text style={styles.securityItem}>• You’ll receive email confirmations</Text>
+              <Text style={styles.securityItem}>• WIthdraw can be requested after 15 Days of investment. If you want to do withdrawal after 15 days you will get 50% of profit but if you wait for complete period of investment e.g 30 Days you can get complete withdraw</Text>
             </View>
           </View>
 
+          {/* Submit */}
           <Button
-            title={isSubmitting ? "Submitting..." : "Submit Withdrawal Request"}
+            title={isSubmitting ? 'Submitting...' : 'Submit Withdrawal Request'}
             onPress={handleSubmit(onSubmit)}
-            disabled={isSubmitting || !isAmountValid || !otpSent}
+            // ❗️No longer blocked by otpSent; backend will validate OTP.
+            disabled={isSubmitting || !isAmountValid || !isFormReady}
             style={styles.submitButton}
           />
         </Card>
 
-        {/* Withdrawal Information */}
+        {/* Info */}
         <Card>
-          <SectionTitle 
-            title="Withdrawal Information" 
+          <SectionTitle
+            title="Withdrawal Information"
             subtitle="Processing times and network fees for different cryptocurrencies."
           />
-          
           <View style={styles.infoGrid}>
             <View style={styles.infoColumn}>
               <Text style={styles.infoColumnTitle}>Processing Times</Text>
-              {processingTimes?.map((item, index) => (
-                <View key={index} style={styles.infoRow}>
+              {processingTimes.map((item, i) => (
+                <View key={i} style={styles.infoRow}>
                   <Text style={styles.infoCrypto}>{item.crypto}</Text>
                   <Text style={styles.infoValue}>{item.time}</Text>
                 </View>
               ))}
             </View>
-            
             <View style={styles.infoColumn}>
               <Text style={styles.infoColumnTitle}>Network Fees</Text>
-              {networkFees?.map((item, index) => (
-                <View key={index} style={styles.infoRow}>
+              {networkFees.map((item, i) => (
+                <View key={i} style={styles.infoRow}>
                   <Text style={styles.infoCrypto}>{item.crypto}</Text>
                   <Text style={styles.infoValue}>{item.fee}</Text>
                 </View>
               ))}
             </View>
           </View>
-
           <View style={styles.feeNote}>
-            <Text style={styles.feeNoteText}>*Network fees are deducted from withdrawal amount</Text>
+            <Text style={styles.feeNoteText}></Text>
           </View>
         </Card>
       </ScrollView>
@@ -442,198 +508,71 @@ export default function WithdrawScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  scrollView: {
-    flex: 1,
-    padding: 16,
-  },
-  header: {
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    lineHeight: 24,
-  },
-  balanceContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  balanceAmount: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  balanceLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  limitsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  limitItem: {
-    alignItems: 'center',
-  },
-  limitLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  limitValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  infoBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#EFF6FF',
-    borderRadius: 8,
-    padding: 16,
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#1E40AF',
-    marginLeft: 8,
-    flex: 1,
-    lineHeight: 20,
-  },
-  amountLimits: {
-    marginTop: -12,
-    marginBottom: 16,
-  },
-  amountLimitText: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  networkInfo: {
-    marginTop: -12,
-    marginBottom: 16,
-  },
-  networkText: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  warningBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#FEF3C7',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 20,
-  },
-  warningText: {
-    fontSize: 14,
-    color: '#92400E',
-    marginLeft: 8,
-    flex: 1,
-    lineHeight: 20,
-  },
-  otpContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: 20,
-  },
-  otpInput: {
-    flex: 1,
-    marginBottom: 0,
-    marginRight: 12,
-  },
-  sendOtpButton: {
-    backgroundColor: '#0EA5E9',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minWidth: 100,
-    alignItems: 'center',
-  },
-  sendOtpButtonDisabled: {
-    backgroundColor: '#E5E7EB',
-  },
-  sendOtpText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  sendOtpTextDisabled: {
-    color: '#9CA3AF',
-  },
-  securityNotices: {
-    backgroundColor: '#FEF2F2',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 20,
-  },
-  securityHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  securityTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#DC2626',
-    marginLeft: 8,
-  },
-  securityList: {
-    marginLeft: 28,
-  },
-  securityItem: {
-    fontSize: 14,
-    color: '#7F1D1D',
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  submitButton: {
-    marginTop: 8,
-  },
-  infoGrid: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  infoColumn: {
-    flex: 1,
-  },
-  infoColumnTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 12,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  infoCrypto: {
-    fontSize: 14,
-    color: '#374151',
-    flex: 1,
-  },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1F2937',
-  },
-  feeNote: {
-    alignItems: 'center',
-  },
-  feeNoteText: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontStyle: 'italic',
-  },
-});
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  scrollView: { flex: 1, padding: 16 },
+  header: { marginBottom: 24 },
+  title: { fontSize: 28, fontWeight: '700', color: '#1F2937', marginBottom: 8 },
+  subtitle: { fontSize: 16, color: '#6B7280', lineHeight: 24 },
 
+  balanceContainer: { alignItems: 'center', marginBottom: 20 },
+  balanceAmount: { fontSize: 32, fontWeight: '700', color: '#1F2937', marginBottom: 4 },
+  balanceLabel: { fontSize: 14, color: '#6B7280' },
+
+  limitsContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+  limitItem: { alignItems: 'center' },
+  limitLabel: { fontSize: 12, color: '#6B7280', marginBottom: 4 },
+  limitValue: { fontSize: 14, fontWeight: '600', color: '#1F2937' },
+
+  infoBanner: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#EFF6FF', borderRadius: 8, padding: 16 },
+  infoText: { fontSize: 14, color: '#1E40AF', marginLeft: 8, flex: 1, lineHeight: 20 },
+
+  amountLimits: { marginTop: -12, marginBottom: 16 },
+  amountLimitText: { fontSize: 12, color: '#6B7280' },
+
+  networkInfo: { marginTop: -12, marginBottom: 16 },
+  networkText: { fontSize: 12, color: '#6B7280' },
+
+  warningBanner: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#FEF3C7', borderRadius: 8, padding: 16, marginBottom: 20 },
+  warningText: { fontSize: 14, color: '#92400E', marginLeft: 8, flex: 1, lineHeight: 20 },
+
+  otpContainer: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 20 },
+  otpInput: { flex: 1, marginBottom: 0, marginRight: 12 },
+  sendOtpButton: { backgroundColor: '#0EA5E9', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, minWidth: 100, alignItems: 'center' },
+  sendOtpButtonDisabled: { backgroundColor: '#E5E7EB' },
+  sendOtpText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
+  sendOtpTextDisabled: { color: '#9CA3AF' },
+
+  securityNotices: { backgroundColor: '#FEF2F2', borderRadius: 8, padding: 16, marginBottom: 20 },
+  securityHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  securityTitle: { fontSize: 16, fontWeight: '600', color: '#DC2626', marginLeft: 8 },
+  securityList: { marginLeft: 28 },
+  securityItem: { fontSize: 14, color: '#7F1D1D', lineHeight: 20, marginBottom: 4 },
+
+  submitButton: { marginTop: 8 },
+
+  infoGrid: { flexDirection: 'row', marginBottom: 16 },
+  infoColumn: { flex: 1 },
+  infoColumnTitle: { fontSize: 16, fontWeight: '600', color: '#1F2937', marginBottom: 12 },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  infoCrypto: { fontSize: 14, color: '#374151', flex: 1 },
+  infoValue: { fontSize: 14, fontWeight: '500', color: '#1F2937' },
+  feeNote: { alignItems: 'center' },
+  feeNoteText: { fontSize: 12, color: '#6B7280', fontStyle: 'italic' },
+
+  // Loyalty styles
+  loyaltyContainer: { gap: 16 },
+  currentTier: { backgroundColor: '#F0FDF4', padding: 16, borderRadius: 8, borderLeftWidth: 4, borderLeftColor: '#10B981' },
+  currentTierTitle: { fontSize: 16, fontWeight: '700', color: '#065F46', marginBottom: 4 },
+  currentTierBonus: { fontSize: 14, color: '#047857', marginBottom: 4 },
+  loyaltyBonusEarned: { fontSize: 12, color: '#059669', fontWeight: '600' },
+  noTier: { backgroundColor: '#F3F4F6', padding: 16, borderRadius: 8, alignItems: 'center' },
+  noTierText: { fontSize: 14, color: '#6B7280', textAlign: 'center', fontStyle: 'italic' },
+  nextTier: { backgroundColor: '#FEF3C7', padding: 16, borderRadius: 8, borderLeftWidth: 4, borderLeftColor: '#F59E0B' },
+  nextTierTitle: { fontSize: 16, fontWeight: '700', color: '#92400E', marginBottom: 4 },
+  nextTierDays: { fontSize: 14, color: '#B45309', marginBottom: 4 },
+  nextTierDescription: { fontSize: 12, color: '#D97706', fontWeight: '600' },
+  loyaltyProgress: { alignItems: 'center' },
+  loyaltyProgressText: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
+  loyaltyProgressBar: { width: '100%', height: 8, backgroundColor: '#E5E7EB', borderRadius: 4, overflow: 'hidden' },
+  loyaltyProgressFill: { height: '100%', backgroundColor: '#10B981', borderRadius: 4 },
+});

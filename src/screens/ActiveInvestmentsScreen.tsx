@@ -30,6 +30,7 @@ export default function ActiveInvestmentsScreen() {
         setLoading(true);
       }
       const response = await investmentService.getInvestments();
+      console.log('Fetched Investments:', response);
       setInvestments(response);
       
       // Show success message on refresh
@@ -57,6 +58,13 @@ export default function ActiveInvestmentsScreen() {
       setRefreshing(false);
     }
   };
+
+  // helpers (top of file or a util)
+const num = (v: any, d = 0) => {
+  if (v === null || v === undefined || v === '') return d;
+  const n = Number(String(v).replace(/[^0-9.\-]+/g, ''));
+  return Number.isFinite(n) ? n : d;
+};
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -86,6 +94,9 @@ export default function ActiveInvestmentsScreen() {
     return '#10B981'; // Green for early stage
   };
 
+  const totalInvested = usd(investments.reduce((sum, inv) => sum + num(inv.amount), 0));
+const totalProfit   = usd(investments.reduce((sum, inv) => sum + num(inv.total_profit), 0));
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView 
@@ -113,7 +124,7 @@ export default function ActiveInvestmentsScreen() {
             </View>
             <View style={styles.summaryStat}>
               <Text style={styles.summaryStatValue}>
-                {usd(investments?.reduce((sum, inv) => sum + inv.amount, 0))}
+                {totalInvested}
               </Text>
               <Text style={styles.summaryStatLabel}>Total Invested</Text>
             </View>

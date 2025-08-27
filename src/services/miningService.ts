@@ -39,7 +39,7 @@ export const miningService = {
   async getMiningStatus(): Promise<MiningStatus> {
     try {
       const response = await apiService.get<any>(API_CONFIG.ENDPOINTS.MINING.STATUS);
-      return response.data.data;
+      return response.data;
     } catch (error) {
       throw error;
     }

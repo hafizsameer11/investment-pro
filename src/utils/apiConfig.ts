@@ -85,6 +85,10 @@ export const API_CONFIG = {
       NETWORK: '/referrals/network',
       STATS: '/referrals/stats',
     },
+    LOYALTY: {
+      USER_STATUS: '/loyalty/user-status',
+      ALL_TIERS: '/loyalty/tiers',
+    },
   },
 };
 

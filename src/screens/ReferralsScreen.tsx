@@ -67,6 +67,8 @@ export default function ReferralsScreen() {
       
       setReferralStats(stats);
       setMyReferrals(referralsData.referrals);
+      console.log('🔵 Referral stats:', stats);
+      console.log('🔵 My referrals:', referralsData);
       
       // Update app data with real referral data
       setAppData({
@@ -242,15 +244,7 @@ export default function ReferralsScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.referralRewards}>
-            <Text style={styles.referralRewardsTitle}>Referral Rewards:</Text>
-            {referralRewards?.map((reward, index) => (
-              <View key={index} style={styles.rewardItem}>
-                <Text style={styles.rewardPlan}>{reward.plan}:</Text>
-                <Text style={styles.rewardBonus}>{usd(reward.bonus)} bonus</Text>
-              </View>
-            ))}
-          </View>
+          
         </Card>
 
         {/* Summary Statistics */}
@@ -315,8 +309,8 @@ export default function ReferralsScreen() {
               {myReferrals?.map((referral, index) => (
                 <View key={referral.id} style={styles.referralItem}>
                   <View style={styles.referralInfo}>
-                    <Text style={styles.referralName}>{referral.name}</Text>
-                    <Text style={styles.referralEmail}>{referral.email}</Text>
+                    <Text style={styles.referralName}>{referral?.name}</Text>
+                    <Text style={styles.referralEmail}>{referral?.email}</Text>
                     <Text style={styles.referralDate}>
                       Joined: {new Date(referral.created_at).toLocaleDateString()}
                     </Text>
