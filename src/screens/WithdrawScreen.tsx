@@ -69,6 +69,7 @@ export default function WithdrawScreen() {
       ]);
 
       if (dashboardResponse?.success && dashboardResponse?.data) {
+        console.log("🟢 Dashboard response: in withdrawl", dashboardResponse);
         setTotalBalance(Number(dashboardResponse.data.total_balance ?? 0));
       } else {
         const local = await getAppData();
