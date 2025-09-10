@@ -108,9 +108,10 @@ export default function DashboardScreen() {
 
         return {
           ...prev,
+          totalProfit: Number(dashboardResponse?.data?.profit_amount ?? prev.totalProfit),
           totalBalance: Number(dashboardResponse?.data?.total_balance ?? prev.totalBalance),
           activePlans: Number(dashboardResponse?.data?.active_plans ?? prev.activePlans),
-          todaysProfit: Number(dashboardResponse?.data?.daily_profit ?? prev.todaysProfit),
+          todaysProfit: Number(dashboardResponse?.data?.todays_profit ?? prev.todaysProfit),
           // Prefer stats.total_earnings if available; fallback to dashboard aggregate
           networkEarnings: Number(
             (stats?.total_earnings ?? dashboardResponse?.data?.referral_bonus_earned) ?? prev.networkEarnings
@@ -278,7 +279,7 @@ export default function DashboardScreen() {
             label="Total Balance"
             value={usd(appData.totalBalance)}
             icon={<Ionicons name="wallet" size={20} color="#0EA5E9" />}
-            trend="+8.2% from last month"
+            // trend="+8.2% from last month"
           />
           <Stat
             label="Active Investments"
@@ -294,13 +295,13 @@ export default function DashboardScreen() {
             label="Today's Profit"
             value={usd(appData.todaysProfit)}
             icon={<Ionicons name="cash" size={20} color="#F59E0B" />}
-            trend="+12.5% vs yesterday"
+            // trend="+12.5% vs yesterday"
           />
           <Stat
             label="Total Profit"
             value={usd(appData.totalProfit)}
             icon={<Ionicons name="trophy" size={20} color="#8B5CF6" />}
-            trend="Since account opening"
+            // trend="Since account opening"
           />
         </View>
 

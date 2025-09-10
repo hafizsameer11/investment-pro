@@ -30,9 +30,7 @@ export const newsService = {
       
       console.log('🟢 News Response:', response);
       
-      if (response.success) {
-        return response.data.data as unknown as NewsItem[];
-      }
+     return response.data as unknown as NewsItem[];
       
       return [];
     } catch (error) {
@@ -51,9 +49,7 @@ export const newsService = {
       
       console.log('🟢 News by Type Response:', response);
       
-      if (response.success) {
-        return response.data.data as unknown as NewsItem[];
-      }
+     return response.data as unknown as NewsItem[] || [];
       
       return [];
     } catch (error) {

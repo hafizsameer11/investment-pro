@@ -343,10 +343,10 @@ export default function PlansScreen() {
               </View>
 
               <View style={styles.planStats}>
-                <View style={styles.returnRateContainer}>
+                {/* <View style={styles.returnRateContainer}>
                   <Text style={styles.returnRate}>{plan.returnRate}</Text>
-                  <Text style={styles.returnRateLabel}>Weekly Return</Text>
-                </View>
+                  <Text style={styles.returnRateLabel}>Daily Return</Text>
+                </View> */}
                 <View style={styles.investmentRange}>
                   <Text style={styles.rangeLabel}>Investment Range</Text>
                   <Text style={styles.rangeValue}>
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   rangeValue: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '500',
     color: '#1F2937',
     textAlign: 'center',

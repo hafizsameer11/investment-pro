@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+// screens/AboutScreen.jsx
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,6 +8,7 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,10 +16,26 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card, SectionTitle } from '../components/UI';
 import { dashboardService } from '../services/dashboardService';
 
+// ===== Configurable growth settings =====
+const EMAIL = 'smith@investpro.agency';
+// Treat total_users as the base at START_DATE and grow by GROWTH_PER_DAY
+const GROWTH_START_DATE = '2025-01-01'; // YYYY-MM-DD
+const GROWTH_PER_DAY = 3;               // users added per day
+
+function daysSince(dateStr) {
+  try {
+    const start = new Date(dateStr + 'T00:00:00');
+    const now = new Date();
+    const diff = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+    return Math.max(0, diff);
+  } catch {
+    return 0;
+  }
+}
+
 export default function AboutScreen() {
   const [aboutData, setAboutData] = useState({
-    total_users: 480,
-    active_plans: '10k',
+    total_users: 480, // base at START_DATE
   });
   const [loading, setLoading] = useState(true);
 
@@ -31,25 +49,46 @@ export default function AboutScreen() {
       const data = await dashboardService.getAbout();
       console.log('🟢 About data loaded:', data);
       if (data && typeof data === 'object') {
-        setAboutData(data);
+        // Expecting { total_users: number, ... }
+        setAboutData(prev => ({
+          ...prev,
+          total_users: Number(data.total_users) || prev.total_users,
+        }));
       }
     } catch (error) {
       console.log('🔴 About data error:', error);
-      // Keep default values if API fails
+      // Keep defaults if API fails
     } finally {
       setLoading(false);
     }
   };
 
-  const handleContact = (type: string) => {
+  const openEmail = async (email) => {
+    const url = `mailto:${email}`;
+    const canOpen = await Linking.canOpenURL(url);
+    if (canOpen) {
+      return Linking.openURL(url);
+    }
+    Alert.alert('Email Error', 'No email client found on this device.');
+  };
+
+  const handleContact = (type) => {
     switch (type) {
       case 'email':
-        Alert.alert('Email Support', 'Opening email client...');
+        openEmail(EMAIL);
         break;
       default:
         Alert.alert('Contact', `Contact via ${type}`);
     }
   };
+
+  // Compute daily-growing Active Users count
+  const activeUsers = useMemo(() => {
+    const base = Number(aboutData?.total_users ?? 0);
+    const d = daysSince(GROWTH_START_DATE);
+    const grown = base + d * GROWTH_PER_DAY;
+    return grown > 0 ? grown : base;
+  }, [aboutData?.total_users]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -80,16 +119,12 @@ export default function AboutScreen() {
               <Text style={styles.missionText}>
                 Founded in 2020 by a team of experienced financial professionals and technology experts, we've helped thousands of investors achieve their financial goals through our carefully curated investment plans.
               </Text>
-              
-              <View style={styles.statsContainer}>
 
+              {/* Stats (Only Active Users, auto-growing) */}
+              <View style={styles.statsContainer}>
                 <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{aboutData?.total_users?.toLocaleString() || '500'}+</Text>
+                  <Text style={styles.statValue}>{activeUsers.toLocaleString()}+</Text>
                   <Text style={styles.statLabel}>Active Users</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{aboutData?.active_plans || '0'}+</Text>
-                  <Text style={styles.statLabel}>Active Investments</Text>
                 </View>
               </View>
             </View>
@@ -98,13 +133,13 @@ export default function AboutScreen() {
 
         {/* How It Works */}
         <Card>
-          <SectionTitle 
-            title="How It Works" 
+          <SectionTitle
+            title="How It Works"
             subtitle="Your journey to financial growth starts here."
           />
-          
+
           <View style={styles.stepsContainer}>
-            <View style={styles.stepItem}>
+            <View className="step" style={styles.stepItem}>
               <View style={styles.stepIcon}>
                 <Text style={styles.stepNumber}>1</Text>
               </View>
@@ -156,11 +191,11 @@ export default function AboutScreen() {
 
         {/* Security First */}
         <Card>
-          <SectionTitle 
-            title="Security First" 
+          <SectionTitle
+            title="Security First"
             subtitle="Your security is our top priority."
           />
-          
+
           <Text style={styles.securityDescription}>
             Your security is our top priority. We employ bank-level encryption and multi-layer security protocols to protect your funds and personal information.
           </Text>
@@ -191,11 +226,11 @@ export default function AboutScreen() {
 
         {/* Investment Strategy */}
         <Card>
-          <SectionTitle 
-            title="Our Investment Strategy" 
+          <SectionTitle
+            title="Our Investment Strategy"
             subtitle="We employ a diversified approach combining traditional and innovative investment methods."
           />
-          
+
           <View style={styles.strategyContainer}>
             <View style={styles.strategyItem}>
               <View style={styles.strategyIcon}>
@@ -229,13 +264,40 @@ export default function AboutScreen() {
           </View>
         </Card>
 
+        {/* Owner */}
+        <Card>
+          <SectionTitle
+            title="Owner"
+            subtitle="Leadership behind InvestPro."
+          />
+          <View style={styles.ownerContainer}>
+            <Image
+              source={{
+                uri: 'https://images.unsplash.com/photo-1568602471122-7832951cc4c5?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+              }}
+
+
+              style={styles.ownerAvatar}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.ownerName}>PAUL SMITH</Text>
+              <Text style={styles.ownerRole}>Founder</Text>
+              <Text style={styles.ownerBio}>
+                Paul is a fintech strategist with a decade of experience in algorithmic trading and portfolio risk management.
+                Before InvestPro, he led quant research at a boutique hedge fund, where he helped design data-driven strategies
+                for multi-asset portfolios. He’s passionate about making professional investing accessible to everyone.
+              </Text>
+            </View>
+          </View>
+        </Card>
+
         {/* Risk Disclosure */}
         <Card>
-          <SectionTitle 
-            title="Important Risk Disclosure" 
+          <SectionTitle
+            title="Important Risk Disclosure"
             subtitle="Please read carefully before investing."
           />
-          
+
           <View style={styles.riskContainer}>
             <View style={styles.riskItem}>
               <Text style={styles.riskTitle}>Investment Risk</Text>
@@ -269,13 +331,13 @@ export default function AboutScreen() {
 
         {/* Get in Touch */}
         <Card>
-          <SectionTitle 
-            title="Get in Touch" 
+          <SectionTitle
+            title="Get in Touch"
             subtitle="We're here to help you succeed."
           />
-          
+
           <View style={styles.contactContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.contactItem}
               onPress={() => handleContact('email')}
             >
@@ -284,7 +346,7 @@ export default function AboutScreen() {
               </View>
               <View style={styles.contactContent}>
                 <Text style={styles.contactTitle}>Email Support</Text>
-                <Text style={styles.contactValue}>info.investproteam@gmail.com</Text>
+                <Text style={styles.contactValue}>{EMAIL}</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -300,11 +362,11 @@ export default function AboutScreen() {
             <Text style={styles.supportText}>
               For any questions, technical support, or account assistance, please contact us at:
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.supportEmailContainer}
               onPress={() => handleContact('email')}
             >
-              <Text style={styles.supportEmail}>info.investproteam@gmail.com</Text>
+              <Text style={styles.supportEmail}>{EMAIL}</Text>
               <Ionicons name="mail-outline" size={20} color="#0EA5E9" />
             </TouchableOpacity>
             <Text style={styles.supportNote}>
@@ -318,62 +380,20 @@ export default function AboutScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  scrollView: {
-    flex: 1,
-    padding: 16,
-  },
-  header: {
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    lineHeight: 24,
-  },
-  missionContainer: {
-    flexDirection: 'column',
-    marginBottom: 20,
-  },
-  missionImageContainer: {
-    width: 'auto',
-    height: 170,
-    marginRight: 16,
-  },
-  missionImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 8,
-  },
-  missionContent: {
-    flex: 1,
-  },
-  missionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 12,
-  },
-  missionText: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    marginTop: 16,
-    gap: 12,
-  },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  scrollView: { flex: 1, padding: 16 },
+  header: { marginBottom: 24 },
+  title: { fontSize: 28, fontWeight: '700', color: '#1F2937', marginBottom: 8 },
+  subtitle: { fontSize: 16, color: '#6B7280', lineHeight: 24 },
+
+  missionContainer: { flexDirection: 'column', marginBottom: 20 },
+  missionImageContainer: { width: 'auto', height: 170, marginRight: 16 },
+  missionImage: { width: '100%', height: '100%', borderRadius: 8 },
+  missionContent: { flex: 1 },
+  missionTitle: { fontSize: 20, fontWeight: '600', color: '#1F2937', marginBottom: 12 },
+  missionText: { fontSize: 14, color: '#6B7280', lineHeight: 20, marginBottom: 12 },
+
+  statsContainer: { flexDirection: 'row', marginTop: 16, gap: 12 },
   statItem: {
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
@@ -383,188 +403,66 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0EA5E9',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  stepsContainer: {
-    marginTop: 16,
-  },
-  stepItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 24,
-  },
+  statValue: { fontSize: 24, fontWeight: '700', color: '#0EA5E9', marginBottom: 4 },
+  statLabel: { fontSize: 12, color: '#6B7280', textAlign: 'center' },
+
+  stepsContainer: { marginTop: 16 },
+  stepItem: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 24 },
   stepIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#0EA5E9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
+    width: 40, height: 40, borderRadius: 20, backgroundColor: '#0EA5E9',
+    justifyContent: 'center', alignItems: 'center', marginRight: 16,
   },
-  stepNumber: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  stepContent: {
-    flex: 1,
-  },
-  stepTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  stepDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-  },
-  securityDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  securityFeatures: {
-    marginTop: 16,
-  },
-  securityFeature: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  securityFeatureText: {
-    fontSize: 14,
-    color: '#374151',
-    marginLeft: 12,
-  },
-  strategyContainer: {
-    marginTop: 16,
-  },
-  strategyItem: {
-    marginBottom: 24,
-  },
+  stepNumber: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
+  stepContent: { flex: 1 },
+  stepTitle: { fontSize: 16, fontWeight: '600', color: '#1F2937', marginBottom: 4 },
+  stepDescription: { fontSize: 14, color: '#6B7280', lineHeight: 20 },
+
+  securityDescription: { fontSize: 14, color: '#6B7280', lineHeight: 20, marginBottom: 20 },
+  securityFeatures: { marginTop: 16 },
+  securityFeature: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  securityFeatureText: { fontSize: 14, color: '#374151', marginLeft: 12 },
+
+  strategyContainer: { marginTop: 16 },
+  strategyItem: { marginBottom: 24 },
   strategyIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
+    width: 48, height: 48, borderRadius: 24, backgroundColor: '#F3F4F6',
+    justifyContent: 'center', alignItems: 'center', marginBottom: 12,
   },
-  strategyTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 8,
-  },
-  strategyDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-  },
-  riskContainer: {
-    marginTop: 16,
-  },
-  riskItem: {
-    marginBottom: 20,
-  },
-  riskTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#DC2626',
-    marginBottom: 8,
-  },
-  riskText: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-  },
-  contactContainer: {
-    marginTop: 16,
-  },
+  strategyTitle: { fontSize: 16, fontWeight: '600', color: '#1F2937', marginBottom: 8 },
+  strategyDescription: { fontSize: 14, color: '#6B7280', lineHeight: 20 },
+
+  ownerContainer: { flexDirection: 'row', gap: 16, alignItems: 'flex-start' },
+  ownerAvatar: { width: 72, height: 72, borderRadius: 36, marginRight: 8 },
+  ownerName: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  ownerRole: { fontSize: 14, color: '#6B7280', marginBottom: 8 },
+  ownerBio: { fontSize: 14, color: '#4B5563', lineHeight: 20 },
+
+  riskContainer: { marginTop: 16 },
+  riskItem: { marginBottom: 20 },
+  riskTitle: { fontSize: 16, fontWeight: '600', color: '#DC2626', marginBottom: 8 },
+  riskText: { fontSize: 14, color: '#6B7280', lineHeight: 20 },
+
+  contactContainer: { marginTop: 16 },
   contactItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 16,
+    borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
   contactIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
+    width: 48, height: 48, borderRadius: 24, backgroundColor: '#F3F4F6',
+    justifyContent: 'center', alignItems: 'center', marginRight: 16,
   },
-  contactContent: {
-    flex: 1,
-  },
-  contactTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  contactValue: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  supportContainer: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  supportHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  supportTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginLeft: 8,
-  },
-  supportText: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 16,
-  },
+  contactContent: { flex: 1 },
+  contactTitle: { fontSize: 16, fontWeight: '600', color: '#1F2937', marginBottom: 4 },
+  contactValue: { fontSize: 14, color: '#6B7280' },
+
+  supportContainer: { alignItems: 'center', paddingVertical: 20 },
+  supportHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  supportTitle: { fontSize: 20, fontWeight: '600', color: '#1F2937', marginLeft: 8 },
+  supportText: { fontSize: 16, color: '#6B7280', textAlign: 'center', lineHeight: 24, marginBottom: 16 },
   supportEmailContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0F9FF',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F0F9FF',
+    paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, marginBottom: 16,
   },
-  supportEmail: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#0EA5E9',
-    marginRight: 8,
-  },
-  supportNote: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
+  supportEmail: { fontSize: 18, fontWeight: '600', color: '#0EA5E9', marginRight: 8 },
+  supportNote: { fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 20 },
 });

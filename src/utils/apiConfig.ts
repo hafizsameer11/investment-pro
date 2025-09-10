@@ -1,7 +1,7 @@
 // API Configuration
 export const API_CONFIG = {
   // Production API URL
-  BASE_URL: 'https://investpro.hmstech.xyz/api/',
+  BASE_URL: 'https://investpro.hmstech.xyz/api',
   API_VERSION: '',
   TIMEOUT: 10000,
   RETRY_ATTEMPTS: 3,
